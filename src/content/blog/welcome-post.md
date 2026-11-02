@@ -7,7 +7,7 @@ excerpt: First blog marking the beginning of this project!
 
 I finally did it! I've been thinking about doing this for months now but was too busy (and lazy), but finally got the excuse to do it because I needed a place for my portfolio.
 
-I named this place **"Crossroads"** because I intend to make this place a hub for various aspects of my life. I don't know how much success i'll get in regards to that, but that's for later. <figure class="side"><img src="/public/files/post001/hkStart.jpg" width="600"><figcaption>The beginning of a journey. (Hollow Knight)</figcaption></figure>
+I named this place **"Crossroads"** because I intend to make this place a hub for various aspects of my life. I don't know how much success i'll get in regards to that, but that's for later. <figure class="side"><img src="/files/post001/hkStart.jpg" width="600"><figcaption>The beginning of a journey. (Hollow Knight)</figcaption></figure>
 
 ### For now, I would like to keep this on record:
 
