@@ -3,17 +3,17 @@
  * Edit the values; the layout picks them up automatically.
  */
 export const site = {
-  name: 'Your Name',
-  handle: 'yourhandle',
-  title: 'Your Name — security & game development',
-  description: 'Portfolio of Your Name: CTF writeups, security tools and games.',
+  name: 'Harshit Lakhotia',
+  handle: 'PseudoELF',
+  title: 'Harshit Lakhotia — security & game development',
+  description: 'Portfolio of Harshit Lakhotia: CTF writeups, security tools and games.',
   tagline:
     'Offensive security and game development. Mapping attack surfaces, then building playable ones.',
 
   // "System status" panel on the home page. Remove any row you don't want.
   status: [
     { label: 'Status', value: 'Open to internships', highlight: true },
-    { label: 'Base', value: 'Your city' },
+    { label: 'Base', value: 'Bengaluru, Delhi (NCR)' },
     { label: 'Focus', value: 'Red team · Game dev' },
     { label: 'Platforms', value: 'HTB · TryHackMe · itch.io' },
   ],
@@ -36,10 +36,10 @@ export const site = {
 
   // Header + contact buttons. `kind` picks the icon: github, itch, linkedin, email, youtube, steam, web
   socials: [
-    { label: 'Email', url: 'mailto:you@example.com', kind: 'email' },
-    { label: 'GitHub', url: 'https://github.com/yourhandle', kind: 'github' },
-    { label: 'itch.io', url: 'https://yourhandle.itch.io', kind: 'itch' },
-    { label: 'LinkedIn', url: 'https://www.linkedin.com/in/yourhandle', kind: 'linkedin' },
+    { label: 'Email', url: 'mailto:harshit.lakhotia2007@gmail.com', kind: 'email' },
+    { label: 'GitHub', url: 'https://github.com/harshit-tyhf', kind: 'github' },
+    { label: 'itch.io', url: 'https://pseudoelf.itch.io', kind: 'itch' },
+    { label: 'LinkedIn', url: 'https://www.linkedin.com/in/harshit-lakhotia-a04294373/', kind: 'linkedin' },
   ],
 
   // Loadout. `icon` is a brand icon (see BRAND in src/components/Icon.astro)
@@ -51,6 +51,7 @@ export const site = {
         { name: 'Python', icon: 'python' },
         { name: 'C / C++', icon: 'cplusplus' },
         { name: 'C#', icon: 'code' },
+        { name: 'Java', icon: 'java'},
         { name: 'Bash', icon: 'bash' },
       ],
     },
@@ -58,6 +59,7 @@ export const site = {
       group: 'Engines',
       items: [
         { name: 'Unity', icon: 'unity' },
+        { name: 'Unreal Engine 5', icon: 'unreal' },
         { name: 'Godot', icon: 'godot' },
         { name: 'Blender', icon: 'blender' },
       ],
