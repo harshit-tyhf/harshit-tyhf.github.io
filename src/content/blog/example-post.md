@@ -3,6 +3,7 @@ title: Example post — how this blog works
 date: 2026-11-01
 excerpt: Every Markdown file in src/content/blog becomes a post, sorted by date.
 tag: devlog
+draft: true
 ---
 
 Write posts in Markdown. The body uses a readable sans-serif so long posts are
