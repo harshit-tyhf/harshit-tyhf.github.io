@@ -1,0 +1,32 @@
+---
+import Base from '../layouts/Base.astro';
+import { withBase } from '../lib/utils';
+---
+<Base title="Not found">
+  <div class="container page zone-terminal">
+    <p class="code">$ cat {Astro.url.pathname}</p>
+    <h1>404: no such file or directory</h1>
+    <p>That page doesn't exist or has moved.</p>
+    <a class="btn btn--solid" href={withBase('/')}>Go to the home page</a>
+  </div>
+</Base>
+
+<style>
+  .page {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.2rem;
+    margin-top: 3rem;
+    padding-block: 3rem;
+    background: var(--bg);
+    font-family: var(--font-body);
+  }
+  .code {
+    color: var(--muted);
+  }
+  h1 {
+    font-size: clamp(2.25rem, 6vw, 4rem);
+    font-weight: 400;
+  }
+</style>

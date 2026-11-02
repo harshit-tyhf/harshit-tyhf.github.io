@@ -1,0 +1,37 @@
+---
+interface Props {
+  num: string;
+  title: string;
+  id?: string;
+}
+const { num, title, id } = Astro.props;
+---
+<div class="heading">
+  <span class="num" aria-hidden="true">// {num}</span>
+  <h2 id={id}>{title}</h2>
+  <div class="extra"><slot /></div>
+</div>
+
+<style>
+  .heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .num {
+    color: var(--accent);
+    font-size: var(--step--1);
+    letter-spacing: 0.2em;
+  }
+  h2 {
+    font-size: var(--step-3);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .extra {
+    margin-left: auto;
+  }
+</style>

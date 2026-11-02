@@ -1,0 +1,80 @@
+---
+/**
+ * Renders a project's links as buttons. Links with an empty url are skipped,
+ * so you can leave placeholders in your Markdown without breaking anything.
+ */
+import Icon from './Icon.astro';
+import { isExternal, withBase } from '../lib/utils';
+
+interface Link {
+  label: string;
+  url: string;
+  kind?: string;
+}
+interface Props {
+  links: Link[];
+  variant?: 'text' | 'icon' | 'button';
+}
+const { links, variant = 'text' } = Astro.props;
+
+const ICON: Record<string, string> = {
+  github: 'github', itch: 'itch', steam: 'steam', youtube: 'youtube',
+  web: 'external', docs: 'docs', download: 'download', play: 'gamepad',
+};
+const shown = links.filter((l) => l.url && l.url.trim() !== '');
+---
+{shown.length > 0 && (
+  <ul class:list={['links', `links--${variant}`]}>
+    {shown.map((l) => {
+      const ext = isExternal(l.url);
+      const icon = ICON[l.kind ?? 'web'] ?? 'external';
+      return (
+        <li>
+          {variant === 'icon' ? (
+            <a class="icon-btn" href={withBase(l.url)} aria-label={l.label} title={l.label}
+               {...(ext ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+              <Icon name={icon} />
+            </a>
+          ) : (
+            <a class:list={[variant === 'button' ? 'btn btn--block' : 'text-link']} href={withBase(l.url)}
+               {...(ext ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+              <Icon name={icon} />
+              {l.label}
+            </a>
+          )}
+        </li>
+      );
+    })}
+  </ul>
+)}
+
+<style>
+  .links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.25rem;
+  }
+  .links--icon {
+    gap: 0.4rem;
+  }
+  .links--button {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .text-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    color: var(--accent);
+    font-size: var(--step--1);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .text-link:hover {
+    color: var(--text-strong);
+  }
+</style>

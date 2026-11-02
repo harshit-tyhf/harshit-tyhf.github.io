@@ -1,0 +1,87 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import SectionHeading from '../../components/SectionHeading.astro';
+import { formatDate, published, withBase } from '../../lib/utils';
+
+const posts = (await getCollection('blog', published)).sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime(),
+);
+---
+<Base title="Field logs" description="Devlogs, writeups and notes.">
+  <div class="container page">
+    <SectionHeading num="04" title="Field logs">
+      <a href={withBase('/rss.xml')}>RSS feed</a>
+    </SectionHeading>
+    {posts.length === 0 ? (
+      <p class="empty-note">No posts yet. Add a Markdown file to src/content/blog/ to publish your first one.</p>
+    ) : (
+      <ul class="posts">
+        {posts.map((p) => (
+          <li>
+            <a href={withBase(`/blog/${p.id}/`)}>
+              <span class="date">{formatDate(p.data.date)}</span>
+              <span class="main">
+                <span class="title">{p.data.title}</span>
+                <span class="excerpt">{p.data.excerpt}</span>
+              </span>
+              <span class="tag">{p.data.tag}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+</Base>
+
+<style>
+  .page {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    padding-top: clamp(2rem, 6vw, 4rem);
+  }
+  .posts {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .posts li {
+    border-bottom: 1px solid var(--line);
+  }
+  .posts a {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.75rem;
+    padding: 1.4rem 0;
+    color: inherit;
+    text-decoration: none;
+  }
+  .posts a:hover .title {
+    color: var(--accent);
+  }
+  .date {
+    flex: 0 0 8rem;
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+  .main {
+    flex: 999 1 380px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .title {
+    font: 700 var(--step-2) var(--font-display);
+    color: var(--text-strong);
+  }
+  .excerpt {
+    font-family: var(--font-reading);
+  }
+  .tag {
+    align-self: center;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+</style>

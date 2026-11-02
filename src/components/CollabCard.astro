@@ -1,0 +1,75 @@
+---
+/** Card for a project made with another team. Styling follows the zone it sits in. */
+import Links from './Links.astro';
+
+interface Props {
+  title: string;
+  summary: string;
+  collab: { team: string; role: string; period?: string; teamUrl?: string };
+  links: { label: string; url: string; kind?: string }[];
+  href?: string; // optional detail page
+}
+const { title, summary, collab, links, href } = Astro.props;
+---
+<article class="collab">
+  <div class="meta">
+    <span class="team">
+      {collab.teamUrl ? <a href={collab.teamUrl} target="_blank" rel="noopener noreferrer">{collab.team}</a> : collab.team}
+    </span>
+    {collab.period && <span class="period">{collab.period}</span>}
+  </div>
+  <h4>{href ? <a href={href}>{title}</a> : title}</h4>
+  <p class="role">Role: {collab.role}</p>
+  <p>{summary}</p>
+  <div class="links"><Links links={links} /></div>
+</article>
+
+<style>
+  .collab {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 1.25rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .team {
+    padding: 0.15rem 0.55rem;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+  }
+  .team a {
+    color: inherit;
+  }
+  .period {
+    color: var(--muted);
+  }
+  h4 {
+    font-size: var(--step-2);
+  }
+  h4 a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .role {
+    color: var(--accent);
+    font-size: var(--step--1);
+  }
+  p:not(.role) {
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+  .links {
+    margin-top: auto;
+  }
+</style>

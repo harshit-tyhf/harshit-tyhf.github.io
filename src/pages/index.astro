@@ -1,0 +1,715 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon.astro';
+import Links from '../components/Links.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import GameCard from '../components/GameCard.astro';
+import CollabCard from '../components/CollabCard.astro';
+import { site } from '../data/site';
+import { formatDate, published, withBase } from '../lib/utils';
+
+const byOrder = (a: { data: { order: number } }, b: { data: { order: number } }) => a.data.order - b.data.order;
+const byDateDesc = (a: { data: { date?: Date } }, b: { data: { date?: Date } }) =>
+  (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0);
+
+const games = (await getCollection('games', published)).sort(byOrder);
+const soloGames = games.filter((g) => !g.data.collab);
+const collabGames = games.filter((g) => g.data.collab);
+
+const security = (await getCollection('security', published)).sort(byDateDesc);
+const writeups = security.filter((s) => s.data.type === 'writeup' && !s.data.collab);
+const tools = security.filter((s) => s.data.type === 'tool' && !s.data.collab);
+const collabSecurity = security.filter((s) => s.data.collab);
+
+const projects = (await getCollection('projects', published)).sort(byOrder);
+const soloProjects = projects.filter((p) => !p.data.collab);
+const collabProjects = projects.filter((p) => p.data.collab);
+
+const posts = (await getCollection('blog', published)).sort(byDateDesc).slice(0, 3);
+
+/** A writeup gets its own page when its Markdown file has body text. */
+const writeupHref = (w: (typeof security)[number]) =>
+  w.body && w.body.trim() ? withBase(`/writeups/${w.id}/`) : w.data.links.find((l) => l.url)?.url;
+
+const categories = [
+  { id: 'games', label: 'Game dev', show: games.length > 0 },
+  { id: 'cyber', label: 'Cybersec', show: security.length > 0 },
+  { id: 'other', label: 'Other', show: projects.length > 0 },
+].filter((c) => c.show);
+---
+<Base>
+  <div class="container stack">
+    <!-- HERO -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-text">
+        <p class="eyebrow">// Operator profile</p>
+        <h1 id="hero-title">{site.name}</h1>
+        <p class="tagline">{site.tagline}</p>
+        <div class="actions">
+          <a class="btn btn--solid" href="#ops">View operations</a>
+          {site.documents[0] && (
+            <a class="btn" href={withBase(site.documents[0].file)} download>
+              <Icon name="download" />{site.documents[0].label}
+            </a>
+          )}
+        </div>
+      </div>
+      {site.status.length > 0 && (
+        <div class="bracket status">
+          <p class="panel-title">System status</p>
+          <dl>
+            {site.status.map((row) => (
+              <>
+                <dt>{row.label}</dt>
+                <dd class:list={[row.highlight && 'hl']}>{row.highlight && '● '}{row.value}</dd>
+              </>
+            ))}
+          </dl>
+        </div>
+      )}
+    </section>
+
+    <!-- ABOUT -->
+    <section id="about" class="section">
+      <SectionHeading num="01" title="About" />
+      <div class="about">
+        <div class="photo">
+          {site.photo ? <img src={withBase(site.photo)} alt={`Photo of ${site.name}`} /> : <span>Add a photo in src/data/site.ts</span>}
+        </div>
+        <div class="about-text">
+          {site.about.map((p) => <p>{p}</p>)}
+          {site.currently && <p class="currently">Currently: {site.currently}</p>}
+        </div>
+        {site.documents.length > 0 && (
+          <div class="bracket files">
+            <p class="panel-title">Files</p>
+            {site.documents.map((doc, i) => (
+              <a class:list={['btn btn--block', i === 0 && 'btn--solid']} href={withBase(doc.file)} download>
+                <Icon name="download" />{doc.label}
+              </a>
+            ))}
+            {site.documentsUpdated && <p class="small">Updated {site.documentsUpdated}</p>}
+          </div>
+        )}
+      </div>
+    </section>
+
+    <!-- OPERATIONS -->
+    <section id="ops" class="section">
+      <SectionHeading num="02" title="Operations">
+        {categories.length > 1 && (
+          <nav aria-label="Project categories">
+            <ul class="chips">
+              {categories.map((c) => <li><a href={`#${c.id}`}>{c.label}</a></li>)}
+            </ul>
+          </nav>
+        )}
+      </SectionHeading>
+
+      {games.length > 0 && (
+        <div id="games" class="zone-arcade zone-panel games">
+          <div class="zone-head">
+            <h3>Game dev</h3>
+            <p>Open a game for gameplay, screenshots and links.</p>
+          </div>
+          {soloGames.length > 0 && (
+            <div class="grid-cards">
+              {soloGames.map((g, i) => <GameCard game={g} level={i + 1} />)}
+            </div>
+          )}
+          {collabGames.length > 0 && (
+            <div class="sub">
+              <h4 class="sub-title"><Icon name="users" />Co-op missions</h4>
+              <div class="grid-cards">
+                {collabGames.map((g) => (
+                  <CollabCard title={g.data.title} summary={g.data.hook} collab={g.data.collab!}
+                              links={g.data.links} href={withBase(`/games/${g.id}/`)} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {security.length > 0 && (
+        <div id="cyber" class="zone-terminal terminal">
+          <div class="term-bar">
+            <span>root@{site.handle}:~/cybersec</span>
+            <span aria-hidden="true">[ _ ] [ □ ] [ x ]</span>
+          </div>
+          <div class="term-body">
+            <h3 class="term-title">Cybersec</h3>
+
+            {writeups.length > 0 && (
+              <>
+                <p class="prompt">$ ls -la ./writeups --sort=date</p>
+                <ul class="rows">
+                  {writeups.map((w) => {
+                    const href = writeupHref(w);
+                    return (
+                      <li>
+                        <span class="date">{formatDate(w.data.date)}</span>
+                        {w.data.category && <span class="cat">{w.data.category}</span>}
+                        {href ? <a class="row-title" href={href}>{w.data.title}</a> : <span class="row-title">{w.data.title}</span>}
+                        {w.data.platform && <span class="where">{w.data.platform}</span>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
+
+            {tools.length > 0 && (
+              <>
+                <p class="prompt">$ ls ./tools</p>
+                <div class="grid-cards">
+                  {tools.map((t) => (
+                    <article class="tool">
+                      <h4>./{t.data.title}</h4>
+                      <p>{t.data.summary}</p>
+                      <Links links={t.data.links} />
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {collabSecurity.length > 0 && (
+              <>
+                <p class="prompt">$ cat ./collabs.log</p>
+                <div class="grid-cards">
+                  {collabSecurity.map((c) => (
+                    <CollabCard title={c.data.title} summary={c.data.summary} collab={c.data.collab!}
+                                links={c.data.links} href={c.body?.trim() ? withBase(`/writeups/${c.id}/`) : undefined} />
+                  ))}
+                </div>
+              </>
+            )}
+            <p class="prompt">$ <span class="blink" aria-hidden="true">█</span></p>
+          </div>
+        </div>
+      )}
+
+      {projects.length > 0 && (
+        <div id="other" class="other">
+          <h3 class="zone-label">Other</h3>
+          {soloProjects.length > 0 && (
+            <div class="grid-cards">
+              {soloProjects.map((p) => (
+                <article class="bracket project">
+                  <h4>{p.data.title}</h4>
+                  <p>{p.data.summary}</p>
+                  {p.data.tags.length > 0 && <ul class="tag-list">{p.data.tags.map((t) => <li class="tag">{t}</li>)}</ul>}
+                  <div class="push"><Links links={p.data.links} /></div>
+                </article>
+              ))}
+            </div>
+          )}
+          {collabProjects.length > 0 && (
+            <div class="sub">
+              <h4 class="sub-title"><Icon name="users" />Joint operations</h4>
+              <div class="grid-cards">
+                {collabProjects.map((p) => (
+                  <CollabCard title={p.data.title} summary={p.data.summary} collab={p.data.collab!} links={p.data.links} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+
+    <!-- LOADOUT -->
+    <section id="loadout" class="section">
+      <SectionHeading num="03" title="Loadout" />
+      <div class="loadout">
+        {site.loadout.map((group) => (
+          <div>
+            <h3 class="group">{group.group}</h3>
+            <ul>
+              {group.items.map((item) => (
+                <li><span class="ico"><Icon name={item.icon} /></span>{item.name}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- LOGS -->
+    {posts.length > 0 && (
+      <section id="logs" class="section">
+        <SectionHeading num="04" title="Field logs">
+          <a class="all" href={withBase('/blog/')}>All entries</a>
+        </SectionHeading>
+        <ul class="posts">
+          {posts.map((p) => (
+            <li>
+              <a href={withBase(`/blog/${p.id}/`)}>
+                <span class="date">{formatDate(p.data.date)}</span>
+                <span class="post-main">
+                  <span class="post-title">{p.data.title}</span>
+                  <span class="excerpt">{p.data.excerpt}</span>
+                </span>
+                <span class="tag">{p.data.tag}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    <!-- COMMS -->
+    <section id="comms" class="section">
+      <SectionHeading num="05" title="Establish comms" />
+      <ul class="comms">
+        {site.socials.map((s, i) => (
+          <li>
+            <a class:list={['btn', i === 0 && 'btn--solid']} href={s.url}
+               {...(s.url.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+              <Icon name={s.kind} />{s.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  </div>
+</Base>
+
+<script>
+  // Pause autoplaying preview loops for visitors who prefer reduced motion.
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.querySelectorAll<HTMLVideoElement>('video[data-motion]').forEach((v) => {
+      v.removeAttribute('autoplay');
+      v.pause();
+    });
+  }
+</script>
+
+<style>
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--section-gap);
+    padding-top: clamp(2rem, 6vw, 4rem);
+  }
+  .section {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    scroll-margin-top: 1rem;
+  }
+  .panel-title {
+    font: 700 var(--step-0) var(--font-display);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent) !important;
+  }
+  .small {
+    font-size: 0.75rem;
+    color: var(--muted) !important;
+  }
+
+  /* Hero */
+  .hero {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2.5rem;
+  }
+  .hero-text {
+    flex: 999 1 520px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.1rem;
+  }
+  .eyebrow {
+    color: var(--accent);
+    font-size: var(--step--1);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  h1 {
+    font-size: var(--step-4);
+    line-height: 0.95;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+  }
+  .tagline {
+    max-width: 36rem;
+    font-size: var(--step-1);
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    margin-top: 0.5rem;
+  }
+  .status {
+    flex: 1 1 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding: 1.75rem;
+  }
+  dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.6rem 1.25rem;
+    font-size: 0.875rem;
+  }
+  dt {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  dd {
+    margin: 0;
+  }
+  dd.hl {
+    color: var(--accent);
+  }
+
+  /* About */
+  .about {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+  }
+  .photo {
+    flex: 0 0 200px;
+    aspect-ratio: 5 / 6;
+    border: 1px dashed var(--line-strong);
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: 1rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+  .photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .about-text {
+    flex: 999 1 340px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    font-family: var(--font-reading);
+    font-size: 1.0625rem;
+    max-width: 62ch;
+  }
+  .currently {
+    color: var(--accent);
+    font-family: var(--font-body);
+    font-size: var(--step--1);
+  }
+  .files {
+    flex: 1 1 240px;
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: 1.6rem;
+  }
+  .files .btn {
+    color: var(--accent);
+  }
+  .files .btn--solid {
+    color: var(--on-accent);
+  }
+
+  /* Operations */
+  .chips {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .chips a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.9rem;
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-size: var(--step--1);
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .chips a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .zone-panel {
+    padding: clamp(1.25rem, 3vw, 2rem);
+    border: 1px solid var(--line);
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 32px 32px;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    scroll-margin-top: 1rem;
+  }
+  .zone-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 0.75rem;
+  }
+  .zone-head h3 {
+    font-size: var(--step-3);
+  }
+  .zone-head p {
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+  .sub {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-top: 1.5rem;
+    border-top: 1px dashed var(--line-strong);
+  }
+  .sub-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--accent);
+    font: 600 var(--step--1) var(--font-body);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  /* Terminal */
+  .terminal {
+    position: relative;
+    border: 1px solid var(--line-strong);
+    background: var(--bg);
+    box-shadow: var(--glow);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    scroll-margin-top: 1rem;
+  }
+  .terminal::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: var(--scanlines);
+  }
+  .term-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--line-strong);
+    color: var(--accent);
+    font-size: 0.75rem;
+  }
+  .term-body {
+    position: relative;
+    z-index: 1;
+    padding: clamp(1.25rem, 3vw, 1.75rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+  .term-title {
+    font-size: 2.875rem;
+    font-weight: 400;
+    line-height: 1;
+    text-shadow: 0 0 12px rgba(61, 255, 110, 0.45);
+  }
+  .prompt {
+    color: var(--muted);
+  }
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .rows li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px dashed var(--line);
+  }
+  .rows .date {
+    min-width: 6.5rem;
+    color: var(--muted);
+  }
+  .cat {
+    min-width: 6.5rem;
+    padding: 0 0.5rem;
+    background: var(--accent);
+    color: var(--on-accent);
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .row-title {
+    flex: 1 1 240px;
+    color: var(--accent-hover);
+  }
+  .where {
+    color: var(--muted);
+  }
+  .tool {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.1rem;
+    border: 1px dashed var(--line-strong);
+  }
+  .tool h4 {
+    font-size: 1.75rem;
+    font-weight: 400;
+  }
+
+  /* Other */
+  .other {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    scroll-margin-top: 1rem;
+  }
+  .zone-label {
+    color: var(--accent);
+    font: 600 var(--step--1) var(--font-body);
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+  }
+  .project {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 1.6rem;
+  }
+  .project h4 {
+    font-size: var(--step-2);
+    color: var(--text-strong);
+  }
+  .push {
+    margin-top: auto;
+  }
+
+  /* Loadout */
+  .loadout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    gap: 1.5rem;
+  }
+  .group {
+    margin-bottom: 0.6rem;
+    color: var(--accent);
+    font: 600 0.75rem var(--font-body);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+  .loadout ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .loadout li {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.7rem 0.9rem;
+    background: var(--bg);
+  }
+  .ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--line);
+    color: var(--accent);
+  }
+
+  /* Posts */
+  .all {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: var(--step--1);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .posts {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .posts li {
+    border-bottom: 1px solid var(--line);
+  }
+  .posts a {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.75rem;
+    padding: 1.4rem 0;
+    color: inherit;
+    text-decoration: none;
+  }
+  .posts a:hover .post-title {
+    color: var(--accent);
+  }
+  .posts .date {
+    flex: 0 0 8rem;
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+  .post-main {
+    flex: 999 1 380px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .post-title {
+    font: 700 var(--step-2) var(--font-display);
+    color: var(--text-strong);
+  }
+  .excerpt {
+    font-family: var(--font-reading);
+  }
+  .posts .tag {
+    align-self: center;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Comms */
+  .comms {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+  }
+</style>

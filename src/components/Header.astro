@@ -1,0 +1,85 @@
+---
+import Icon from './Icon.astro';
+import { site } from '../data/site';
+import { withBase } from '../lib/utils';
+
+const nav = [
+  { label: 'About', href: '/#about' },
+  { label: 'Operations', href: '/#ops' },
+  { label: 'Loadout', href: '/#loadout' },
+  { label: 'Logs', href: '/blog/' },
+  { label: 'Comms', href: '/#comms' },
+];
+const socials = site.socials.filter((s) => s.kind !== 'email');
+---
+<header class="site-header container">
+  <a class="logo" href={withBase('/')}>
+    <span class="dot pulse" aria-hidden="true"></span>OPS://{site.handle}
+  </a>
+  <nav aria-label="Main">
+    <ul>
+      {nav.map((n) => <li><a href={withBase(n.href)}>{n.label}</a></li>)}
+    </ul>
+  </nav>
+  <ul class="socials">
+    {socials.map((s) => (
+      <li>
+        <a class="icon-btn" href={s.url} target="_blank" rel="noopener noreferrer" aria-label={s.label} title={s.label}>
+          <Icon name={s.kind} />
+        </a>
+      </li>
+    ))}
+  </ul>
+</header>
+
+<style>
+  .site-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block: 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 44px;
+    color: var(--accent);
+    font: 700 var(--step-1) var(--font-display);
+    text-decoration: none;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  nav ul {
+    gap: 0.25rem 1.5rem;
+    font-size: var(--step--1);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--text);
+    text-decoration: none;
+  }
+  nav a:hover {
+    color: var(--accent);
+  }
+  .socials {
+    gap: 0.5rem;
+  }
+</style>

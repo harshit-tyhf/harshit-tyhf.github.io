@@ -1,0 +1,340 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import { Image } from 'astro:assets';
+import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
+import Links from '../../components/Links.astro';
+import { published, withBase } from '../../lib/utils';
+
+export async function getStaticPaths() {
+  const games = await getCollection('games', published);
+  return games.map((game) => ({ params: { slug: game.id }, props: { game } }));
+}
+
+interface Props {
+  game: CollectionEntry<'games'>;
+}
+const { game } = Astro.props;
+const d = game.data;
+const { Content } = await render(game);
+const hasBody = Boolean(game.body && game.body.trim());
+
+// Build the media list from whatever exists. Missing pieces are simply skipped.
+type Media =
+  | { kind: 'video'; label: string; src: string }
+  | { kind: 'youtube'; label: string; id: string }
+  | { kind: 'image'; label: string; image: ImageMetadata };
+
+const media: Media[] = [];
+if (d.video) media.push({ kind: 'video', label: 'Gameplay', src: withBase(d.video) });
+else if (d.youtube) media.push({ kind: 'youtube', label: 'Gameplay', id: d.youtube });
+d.screenshots.forEach((image, i) =>
+  media.push({ kind: 'image', label: `Shot ${String(i + 1).padStart(2, '0')}`, image }),
+);
+
+const specLabels: Record<string, string> = {
+  engine: 'Engine',
+  platform: 'Platform',
+  role: 'My role',
+  team: 'Team',
+  builtIn: 'Built in',
+};
+const specs = Object.entries(d.specs).filter(([, v]) => v);
+if (d.collab) specs.unshift(['collab', `${d.collab.team} (${d.collab.role})`]);
+specLabels.collab = 'Made with';
+---
+<Base title={d.title} description={d.hook} image={d.cover?.src} zone="arcade">
+  <div class="container page">
+    <a class="back" href={withBase('/#games')}><Icon name="back" />Back to operations</a>
+
+    <header class="title">
+      {d.tags.length > 0 && <ul class="tag-list">{d.tags.map((t) => <li class="tag">{t}</li>)}</ul>}
+      <h1>{d.title}</h1>
+      <p class="hook">{d.hook}</p>
+    </header>
+
+    <div class="layout">
+      <section class="media" aria-label="Gameplay and screenshots">
+        <div class="stage">
+          {media.length === 0 && (
+            d.cover
+              ? <Image src={d.cover} alt={`${d.title} key art`} widths={[700, 1200]} sizes="(max-width: 900px) 100vw, 760px" />
+              : <div class="empty">Media coming soon</div>
+          )}
+          {media.map((m, i) => (
+            <div class="slide" id={`slide-${i}`} data-slide={i} hidden={i !== 0}>
+              {m.kind === 'video' && (
+                <video src={m.src} controls preload="metadata" playsinline poster={d.cover?.src}>
+                  <a href={m.src}>Download the gameplay video</a>
+                </video>
+              )}
+              {m.kind === 'youtube' && (
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${m.id}`}
+                  title={`${d.title} gameplay video`}
+                  loading="lazy"
+                  allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                  allowfullscreen></iframe>
+              )}
+              {m.kind === 'image' && (
+                <Image src={m.image} alt={`${d.title}: ${m.label.toLowerCase()}`}
+                       widths={[700, 1200, 1600]} sizes="(max-width: 900px) 100vw, 760px" loading={i === 0 ? 'eager' : 'lazy'} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {media.length > 1 && (
+          <ul class="thumbs" role="list">
+            {media.map((m, i) => (
+              <li>
+                <button type="button" data-thumb={i} aria-controls={`slide-${i}`} aria-pressed={i === 0 ? 'true' : 'false'}>
+                  {m.kind === 'image'
+                    ? <Image src={m.image} alt="" width={240} />
+                    : d.cover
+                      ? <Image src={d.cover} alt="" width={240} />
+                      : null}
+                  <span class="thumb-label">
+                    {m.kind !== 'image' && <Icon name="play" size={12} />}{m.label}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <aside class="side">
+        {d.links.some((l) => l.url) && (
+          <div class="panel">
+            <h2 class="panel-title">Links</h2>
+            <Links links={d.links} variant="button" />
+          </div>
+        )}
+        {specs.length > 0 && (
+          <div class="panel">
+            <h2 class="panel-title">Specs</h2>
+            <dl>
+              {specs.map(([k, v]) => (<><dt>{specLabels[k] ?? k}</dt><dd>{v}</dd></>))}
+            </dl>
+          </div>
+        )}
+      </aside>
+    </div>
+
+    {(hasBody || d.features.length > 0) && (
+      <div class="details">
+        {hasBody && (
+          <section class="prose brief" aria-label="About the game">
+            <Content />
+          </section>
+        )}
+        {d.features.length > 0 && (
+          <section class="features">
+            <h2>Features</h2>
+            <ul>{d.features.map((f) => <li>{f}</li>)}</ul>
+          </section>
+        )}
+      </div>
+    )}
+  </div>
+</Base>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-thumb]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const index = btn.dataset.thumb;
+      document.querySelectorAll<HTMLElement>('[data-slide]').forEach((slide) => {
+        const active = slide.dataset.slide === index;
+        slide.hidden = !active;
+        if (!active) slide.querySelector('video')?.pause();
+      });
+      document.querySelectorAll('[data-thumb]').forEach((b) =>
+        b.setAttribute('aria-pressed', String(b === btn)),
+      );
+    });
+  });
+</script>
+
+<style>
+  .page {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    padding-top: 1.5rem;
+  }
+  .back {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    color: var(--accent);
+    font-size: var(--step--1);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+  .title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  h1 {
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+  }
+  .hook {
+    max-width: 48rem;
+    color: var(--muted);
+    font-size: var(--step-1);
+  }
+  .layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+  .media {
+    flex: 999 1 560px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  .stage {
+    aspect-ratio: 16 / 9;
+    border: 1px solid var(--line);
+    background: repeating-linear-gradient(135deg, var(--surface) 0 14px, var(--bg) 14px 28px);
+    overflow: hidden;
+  }
+  .slide,
+  .stage > :global(img) {
+    width: 100%;
+    height: 100%;
+  }
+  .slide :global(:is(img, video, iframe)) {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    object-fit: contain;
+    background: #000;
+  }
+  .stage > :global(img) {
+    object-fit: cover;
+  }
+  .empty {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    color: var(--muted);
+  }
+  .thumbs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 0.6rem;
+  }
+  .thumbs button {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    padding: 0;
+    border: 2px solid var(--line);
+    background: var(--surface);
+    color: var(--text-strong);
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .thumbs button[aria-pressed='true'] {
+    border-color: var(--accent);
+  }
+  .thumbs :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.75;
+  }
+  .thumb-label {
+    position: absolute;
+    left: 0.35rem;
+    bottom: 0.35rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.1rem 0.4rem;
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    font: 0.6875rem var(--font-body);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .side {
+    flex: 1 1 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: 1.4rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .panel-title {
+    color: var(--accent);
+    font-size: var(--step-0);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .panel :global(.btn--block) {
+    color: var(--text-strong);
+    border-color: var(--line-strong);
+  }
+  .panel :global(li:first-child .btn--block) {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+  }
+  dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 1.1rem;
+    font-size: 0.875rem;
+  }
+  dt {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  dd {
+    margin: 0;
+  }
+  .details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2.5rem;
+  }
+  .brief {
+    flex: 999 1 480px;
+    min-width: 0;
+  }
+  .features {
+    flex: 1 1 280px;
+  }
+  .features h2 {
+    font-size: var(--step-2);
+    margin-bottom: 0.8rem;
+  }
+  .features ul {
+    margin: 0;
+    padding-left: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+</style>
