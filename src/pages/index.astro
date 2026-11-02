@@ -83,7 +83,7 @@ const categories = [
         </div>
         {site.documents.length > 0 && (
           <div class="bracket files">
-            <p class="panel-title">Files</p>
+            <p class="panel-title">Declassified Files</p>
             {site.documents.map((doc, i) => (
               <a class:list={['btn btn--block', i === 0 && 'btn--solid']} href={withBase(doc.file)} download>
                 <Icon name="download" />{doc.label}
