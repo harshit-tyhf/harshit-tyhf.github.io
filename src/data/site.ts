@@ -25,7 +25,7 @@ export const site = {
   ],
   currently: 'Building a roguelike and grinding pwn challenges',
   // Put a photo in public/files/ and set e.g. '/files/me.jpg'. Leave empty to show a placeholder.
-  photo: '',
+  photo: '/files/me.jpg',
 
   // Files in public/files/. Delete an entry to hide its button.
   documents: [
