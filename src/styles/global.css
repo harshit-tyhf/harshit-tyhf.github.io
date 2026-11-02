@@ -259,3 +259,49 @@ p {
     transition: none !important;
   }
 }
+
+/* Click-to-enlarge images */
+.prose img {
+  cursor: zoom-in;
+}
+.lightbox {
+  padding: 0;
+  max-width: 95vw;
+  max-height: 95vh;
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  color: var(--text);
+  cursor: zoom-out;
+}
+.lightbox::backdrop {
+  background: rgba(0, 0, 0, 0.85);
+}
+.lightbox img {
+  width: auto;
+  height: auto;
+  max-width: 92vw;
+  max-height: 85vh;
+}
+.lightbox-caption {
+  padding: 0.6rem 1rem;
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+.lightbox-caption:empty {
+  display: none;
+}
+.lightbox-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  color: var(--text-strong);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+html:has(.lightbox[open]) {
+  overflow: hidden; /* stop the page scrolling behind it */
+}

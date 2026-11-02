@@ -32,6 +32,7 @@ const { Content } = await render(post);
 
 <style>
   .page {
+    /*max-width: 48rem;*/
     display: flex;
     flex-direction: column;
     gap: 2rem;
@@ -71,4 +72,22 @@ const { Content } = await render(post);
     font-size: var(--step-1);
     color: var(--muted);
   }
+  /* Side figures: <figure class="side"> hangs in the empty space to the right */
+.prose :global(figure) {
+  margin: 0;
+}
+.prose :global(figcaption) {
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+@media (min-width: 1100px) {
+  .prose :global(.side) {
+    --side-w: 300px;
+    float: right;
+    clear: right;
+    width: 300px;
+    margin-right: calc(-300px - 3rem);
+  }
+}
 </style>

@@ -52,6 +52,44 @@ const ogImage = image ? new URL(image, Astro.site).toString() : undefined;
       <span>© {new Date().getFullYear()} {site.name}</span>
       <a href={withBase('/rss.xml')}>RSS</a>
     </footer>
+    
+    <dialog class="lightbox" id="lightbox" aria-label="Enlarged image">
+  <button type="button" class="lightbox-close" aria-label="Close">✕</button>
+  <img alt="" />
+  <p class="lightbox-caption"></p>
+</dialog>
+
+<script>
+  const dialog = document.getElementById('lightbox') as HTMLDialogElement | null;
+  if (dialog) {
+    const big = dialog.querySelector('img')!;
+    const caption = dialog.querySelector('.lightbox-caption')!;
+
+    const open = (img: HTMLImageElement) => {
+      big.src = img.currentSrc || img.src;
+      big.alt = img.alt;
+      caption.textContent =
+        img.closest('figure')?.querySelector('figcaption')?.textContent ?? img.alt;
+      dialog.showModal();
+    };
+
+    document.querySelectorAll<HTMLImageElement>('.prose img').forEach((img) => {
+      img.tabIndex = 0;
+      img.setAttribute('role', 'button');
+      img.setAttribute('aria-label', `Enlarge image${img.alt ? `: ${img.alt}` : ''}`);
+      img.addEventListener('click', () => open(img));
+      img.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open(img);
+        }
+      });
+    });
+
+    // Clicking anywhere (image, background or ✕) closes it. Escape also works.
+    dialog.addEventListener('click', () => dialog.close());
+  }
+</script>
   </body>
 </html>
 
