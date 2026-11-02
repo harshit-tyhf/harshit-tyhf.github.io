@@ -2,11 +2,12 @@
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import SectionHeading from '../../components/SectionHeading.astro';
-import { formatDate, published, withBase } from '../../lib/utils';
+import { formatDate, published, withBase, logNumbers } from '../../lib/utils';
 
 const posts = (await getCollection('blog', published)).sort(
   (a, b) => b.data.date.getTime() - a.data.date.getTime(),
 );
+const nums = logNumbers(posts);
 ---
 <Base title="Field logs" description="Devlogs, writeups and notes.">
   <div class="container page">
@@ -20,7 +21,7 @@ const posts = (await getCollection('blog', published)).sort(
         {posts.map((p) => (
           <li>
             <a href={withBase(`/blog/${p.id}/`)}>
-              <span class="date">{formatDate(p.data.date)}</span>
+              <span class="date">{nums.get(p.id) && <span class="num">#{nums.get(p.id)}</span>}<span>{formatDate(p.data.date)}</span></span>
               <span class="main">
                 <span class="title">{p.data.title}</span>
                 <span class="excerpt">{p.data.excerpt}</span>
@@ -61,10 +62,27 @@ const posts = (await getCollection('blog', published)).sort(
     color: var(--accent);
   }
   .date {
-    flex: 0 0 8rem;
-    color: var(--muted);
-    font-size: var(--step--1);
+  flex: 0 0 8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+.num {
+  color: var(--accent);
+  font: 700 var(--step-2) / 1 var(--font-display);
+}
+
+/* On phones the date sits above the title, so keep it on one line there */
+@media (max-width: 600px) {
+  .date {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.6rem;
   }
+}
   .main {
     flex: 999 1 380px;
     min-width: 0;

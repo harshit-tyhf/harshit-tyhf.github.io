@@ -190,6 +190,7 @@ p {
 }
 .prose h2,
 .prose h3 {
+  color: var(--accent);
   margin-top: 2em;
 }
 .prose code {
@@ -210,6 +211,24 @@ p {
   padding-left: 1rem;
   border-left: 2px solid var(--accent);
   color: var(--muted);
+}
+
+/* Highlighted commands: write <kbd>npm run dev</kbd> in Markdown */
+.prose kbd {
+  font-family: var(--font-body);
+  font-size: 0.9em;
+  background: #000;
+  color: var(--accent);
+  padding: 0.15em 0.45em;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* Inline code like `npm run dev` (code blocks are styled separately) */
+.prose :not(pre) > code {
+  color: var(--accent);
+  white-space: nowrap;
 }
 
 .blink {
