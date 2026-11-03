@@ -14,15 +14,17 @@ const d = game.data;
 const href = withBase(`/games/${game.id}/`);
 const hasVideo = Boolean(d.video || d.youtube);
 const shots = d.screenshots.length;
+// Still image for the card: the cover if there is one, otherwise the first screenshot.
+const still = d.cover ?? d.screenshots[0];
 ---
 <article class="card">
   <a class="card-main" href={href}>
     <div class="media">
       {d.previewLoop ? (
         <video src={withBase(d.previewLoop)} muted loop playsinline autoplay preload="metadata"
-               poster={d.cover?.src} data-motion aria-hidden="true"></video>
-      ) : d.cover ? (
-        <Image src={d.cover} alt="" widths={[400, 700]} sizes="(max-width: 700px) 100vw, 360px" />
+               poster={still?.src} data-motion aria-hidden="true"></video>
+      ) : still ? (
+        <Image src={still} alt="" widths={[400, 700]} sizes="(max-width: 700px) 100vw, 360px" />
       ) : (
         <div class="placeholder" aria-hidden="true">No preview yet</div>
       )}
@@ -89,7 +91,7 @@ const shots = d.screenshots.length;
   }
   .lvl {
     top: 0.6rem;
-    left: 0.6rem;
+    right: 0.6rem;
     border: 1px solid var(--accent);
     color: var(--accent);
   }

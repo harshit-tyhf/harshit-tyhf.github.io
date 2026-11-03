@@ -13,17 +13,18 @@ export const site = {
   // "System status" panel on the home page. Remove any row you don't want.
   status: [
     { label: 'Status', value: 'Open to internships', highlight: true },
-    { label: 'Base', value: 'Bengaluru, Delhi (NCR)' },
-    { label: 'Focus', value: 'Red team · Game dev' },
+    { label: 'Base', value: 'Bengaluru, \nDelhi (NCR),\nMumbai' },
+    { label: 'Focus', value: 'CTFs · Game Dev\n· Hackathons' },
     { label: 'Platforms', value: 'HTB · TryHackMe · itch.io' },
   ],
 
   // About section. Each string is a paragraph.
   about: [
-    'Two or three lines on who you are, what got you into security and games, and what you are working toward.',
-    'What you are currently learning or building: a CTF season, a game jam, a certification, an engine deep-dive.',
+    'I am a second year B.Tech CSE student at Manipal Institute of Technology, Bengaluru.',
+    'Passionate about games, game development, cybersecurity and electronics. Looking for CTFs, game jams to participate in.',
+    'Also open for Internships and collaborations. Reach out on my mail or LinkedIn if you want to work together!',
   ],
-  currently: 'Building a roguelike and grinding pwn challenges',
+  currently: 'Building some games and grinding steganography challenges',
   // Put a photo in public/files/ and set e.g. '/files/me.jpg'. Leave empty to show a placeholder.
   photo: '/files/me.jpg',
 

@@ -2,7 +2,7 @@
 # A complete game entry: every optional field is filled in.
 title: Example — full game entry
 hook: One line that makes people want to click. This entry uses every field so you can see them all.
-order: 1
+order: 3
 tags: [Unity, Game jam, WebGL]
 
 cover: ../../assets/games/example-full-entry/cover.jpg

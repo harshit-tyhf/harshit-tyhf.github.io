@@ -2,7 +2,7 @@
 # No gameplay recording yet: the "Gameplay" badge and video tab simply don't appear.
 title: Example — no recording yet
 hook: Screenshots only for now. Add `video:` or `youtube:` later and the player shows up.
-order: 2
+order: 4
 tags: [Godot, Prototype]
 cover: ../../assets/games/example-no-recording/cover.jpg
 screenshots:
@@ -13,6 +13,7 @@ links:
   - { label: Play on itch.io, url: "", kind: itch }   # empty url = button hidden
 specs:
   engine: Godot 4
+draft: true
 ---
 
 A short description of the prototype.
