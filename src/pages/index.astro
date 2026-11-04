@@ -7,7 +7,7 @@ import SectionHeading from '../components/SectionHeading.astro';
 import GameCard from '../components/GameCard.astro';
 import CollabCard from '../components/CollabCard.astro';
 import { site } from '../data/site';
-import { formatDate, published, withBase } from '../lib/utils';
+import { formatDate, isExternal, published, withBase } from '../lib/utils';
 
 const byOrder = (a: { data: { order: number } }, b: { data: { order: number } }) => a.data.order - b.data.order;
 const byDateDesc = (a: { data: { date?: Date } }, b: { data: { date?: Date } }) =>
@@ -19,6 +19,11 @@ const collabGames = games.filter((g) => g.data.collab);
 
 const security = (await getCollection('security', published)).sort(byDateDesc);
 const writeups = security.filter((s) => s.data.type === 'writeup' && !s.data.collab);
+/** How many writeups the homepage shows. The rest are on /writeups/. */
+const WRITEUPS_ON_HOME = 5;
+const latestWriteups = writeups.slice(0, WRITEUPS_ON_HOME);
+/** Every writeup, including team ones, as listed on /writeups/. */
+const allWriteupsCount = security.filter((s) => s.data.type === 'writeup').length;
 const tools = security.filter((s) => s.data.type === 'tool' && !s.data.collab);
 const collabSecurity = security.filter((s) => s.data.collab);
 
@@ -122,10 +127,7 @@ const categories = [
             <div class="sub">
               <h4 class="sub-title"><Icon name="users" />Co-op missions</h4>
               <div class="grid-cards">
-                {collabGames.map((g) => (
-                  <CollabCard title={g.data.title} summary={g.data.hook} collab={g.data.collab!}
-                              links={g.data.links} href={withBase(`/games/${g.id}/`)} />
-                ))}
+                {collabGames.map((g) => <GameCard game={g} />)}
               </div>
             </div>
           )}
@@ -145,18 +147,21 @@ const categories = [
               <>
                 <p class="prompt">$ ls -la ./writeups --sort=date</p>
                 <ul class="rows">
-                  {writeups.map((w) => {
+                  {latestWriteups.map((w) => {
                     const href = writeupHref(w);
                     return (
                       <li>
                         <span class="date">{formatDate(w.data.date)}</span>
                         {w.data.category && <span class="cat">{w.data.category}</span>}
-                        {href ? <a class="row-title" href={href}>{w.data.title}</a> : <span class="row-title">{w.data.title}</span>}
+                        {href ? <a class="row-title" href={href} {...(isExternal(href) ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{w.data.title}</a> : <span class="row-title">{w.data.title}</span>}
                         {w.data.platform && <span class="where">{w.data.platform}</span>}
                       </li>
                     );
                   })}
                 </ul>
+                {writeups.length > WRITEUPS_ON_HOME && (
+                  <p class="prompt"><a href={withBase('/writeups/')}>$ ls ./writeups --all</a> ({allWriteupsCount} total)</p>
+                )}
               </>
             )}
 

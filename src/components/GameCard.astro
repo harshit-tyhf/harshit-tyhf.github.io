@@ -7,7 +7,7 @@ import { withBase } from '../lib/utils';
 
 interface Props {
   game: CollectionEntry<'games'>;
-  level: number;
+  level?: number; // not used for co-op games
 }
 const { game, level } = Astro.props;
 const d = game.data;
@@ -28,12 +28,13 @@ const still = d.cover ?? d.screenshots[0];
       ) : (
         <div class="placeholder" aria-hidden="true">No preview yet</div>
       )}
-      <span class="lvl">LVL {String(level).padStart(2, '0')}</span>
+      <span class="lvl">{d.collab ? 'Co-op' : `LVL ${String(level ?? 0).padStart(2, '0')}`}</span>
       {hasVideo && <span class="badge badge--left"><Icon name="play" size={14} />Gameplay</span>}
       {shots > 0 && <span class="badge badge--right"><Icon name="image" size={14} />{shots}</span>}
     </div>
     <div class="body">
       <h3>{d.title}</h3>
+      {d.collab && <p class="crew">With {d.collab.team} · {d.collab.role}</p>}
       <p>{d.hook}</p>
     </div>
   </a>
@@ -117,6 +118,12 @@ const still = d.cover ?? d.screenshots[0];
   .body p {
     color: var(--muted);
     font-size: 0.875rem;
+  }
+  .body .crew {
+    color: var(--accent);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
   .foot {
     display: flex;

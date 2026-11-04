@@ -1,0 +1,112 @@
+---
+/** Full list of every writeup. The homepage only shows the newest few. */
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
+import { formatDate, isExternal, published, withBase } from '../../lib/utils';
+
+const writeups = (await getCollection('security', published))
+  .filter((s) => s.data.type === 'writeup')
+  .sort((a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0));
+
+/** A writeup gets its own page when its Markdown file has body text; otherwise use its first link. */
+const writeupHref = (w: (typeof writeups)[number]) =>
+  w.body && w.body.trim() ? withBase(`/writeups/${w.id}/`) : w.data.links.find((l) => l.url)?.url;
+---
+<Base title="Writeups" description="Every CTF and security writeup." zone="terminal">
+  <div class="container page">
+    <a class="back" href={withBase('/#cyber')}><Icon name="back" />cd ../cybersec</a>
+    <header>
+      <p class="prompt">$ ls -la ./writeups --all --sort=date</p>
+      <h1>Writeups</h1>
+      <p class="count">{writeups.length} {writeups.length === 1 ? 'entry' : 'entries'}</p>
+    </header>
+
+    {writeups.length === 0 ? (
+      <p class="prompt">No writeups yet.</p>
+    ) : (
+      <ul class="rows">
+        {writeups.map((w) => {
+          const href = writeupHref(w);
+          return (
+            <li>
+              <span class="date">{formatDate(w.data.date)}</span>
+              {w.data.category && <span class="cat">{w.data.category}</span>}
+              {href ? <a class="row-title" href={href} {...(isExternal(href) ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{w.data.title}</a> : <span class="row-title">{w.data.title}</span>}
+              {w.data.platform && <span class="where">{w.data.platform}</span>}
+              {w.data.collab && <span class="where">with {w.data.collab.team}</span>}
+            </li>
+          );
+        })}
+      </ul>
+    )}
+    <p class="prompt">$ <span class="blink" aria-hidden="true">█</span></p>
+  </div>
+</Base>
+
+<style>
+  .page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-top: 1.5rem;
+    font-size: 0.875rem;
+  }
+  .back {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    color: var(--accent);
+  }
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px dashed var(--line);
+  }
+  h1 {
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    font-weight: 400;
+    line-height: 1;
+    text-shadow: 0 0 12px rgba(61, 255, 110, 0.4);
+  }
+  .prompt,
+  .count {
+    color: var(--muted);
+  }
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .rows li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px dashed var(--line);
+  }
+  .date {
+    min-width: 6.5rem;
+    color: var(--muted);
+  }
+  .cat {
+    min-width: 6.5rem;
+    padding: 0 0.5rem;
+    background: var(--accent);
+    color: var(--on-accent);
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .row-title {
+    flex: 1 1 240px;
+    color: var(--accent-hover);
+  }
+  .where {
+    color: var(--muted);
+  }
+</style>
