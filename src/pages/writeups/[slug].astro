@@ -3,6 +3,7 @@ import { getCollection, render, type CollectionEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import Links from '../../components/Links.astro';
+import ShareButton from '../../components/ShareButton.astro';
 import { formatDate, published, withBase } from '../../lib/utils';
 
 // Only security entries that have body text get their own page.
@@ -24,9 +25,10 @@ const { Content } = await render(entry);
     <header>
       <p class="meta">
         {d.date && <span>{formatDate(d.date)}</span>}
-        {d.category && <span class="cat">{d.category}</span>}
+        {d.category && <a class="cat" href={withBase(`/writeups/?tag=${encodeURIComponent(d.category.toLowerCase())}`)} title="More writeups in this category">{d.category}</a>}
         {d.platform && <span>{d.platform}</span>}
         {d.collab && <span>with {d.collab.team}</span>}
+        <ShareButton />
       </p>
       <h1>{d.title}</h1>
       <p class="summary">{d.summary}</p>
@@ -63,6 +65,7 @@ const { Content } = await render(entry);
   .meta {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 0.5rem 1.25rem;
     color: var(--muted);
     font-size: var(--step--1);

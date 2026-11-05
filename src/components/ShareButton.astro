@@ -1,0 +1,73 @@
+---
+/**
+ * "Copy link" button: copies the current page's address so it's easy to share.
+ * Shows "Link copied" for a moment afterwards. Hidden if JavaScript is off.
+ */
+import Icon from './Icon.astro';
+---
+<button type="button" class="share" data-share hidden>
+  <span class="idle"><Icon name="link" size={15} />Share</span>
+  <span class="done" aria-live="polite"><Icon name="check" size={15} />Link copied</span>
+</button>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('button[data-share]').forEach((btn) => {
+    let timer: number | undefined;
+    btn.hidden = false;
+    btn.addEventListener('click', async () => {
+      const url = location.origin + location.pathname; // without ?query or #section
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        // Older browsers / non-secure pages: copy through a temporary text box.
+        const box = document.createElement('textarea');
+        box.value = url;
+        box.style.position = 'fixed';
+        box.style.opacity = '0';
+        document.body.append(box);
+        box.select();
+        document.execCommand('copy');
+        box.remove();
+      }
+      btn.classList.add('copied');
+      clearTimeout(timer);
+      timer = window.setTimeout(() => btn.classList.remove('copied'), 2000);
+    });
+  });
+</script>
+
+<style>
+  .share {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 0.7rem;
+    border: 1px solid var(--line-strong);
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+    font-size: var(--step--1);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .share[hidden] {
+    display: none;
+  }
+  .share:hover {
+    border-color: var(--accent);
+  }
+  .idle,
+  .done {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .done,
+  .copied .idle {
+    display: none;
+  }
+  .copied .done {
+    display: inline-flex;
+  }
+</style>

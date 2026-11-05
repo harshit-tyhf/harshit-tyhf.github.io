@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import SectionHeading from '../../components/SectionHeading.astro';
+import TagFilter from '../../components/TagFilter.astro';
 import { formatDate, published, withBase, logNumbers } from '../../lib/utils';
 
 const posts = (await getCollection('blog', published)).sort(
@@ -17,9 +18,11 @@ const nums = logNumbers(posts);
     {posts.length === 0 ? (
       <p class="empty-note">No posts yet. Add a Markdown file to src/content/blog/ to publish your first one.</p>
     ) : (
+      <>
+      <TagFilter tags={posts.map((p) => p.data.tag)} label="Filter logs by tag" />
       <ul class="posts">
         {posts.map((p) => (
-          <li>
+          <li data-tags={p.data.tag.toLowerCase()}>
             <a href={withBase(`/blog/${p.id}/`)}>
               <span class="date">{nums.get(p.id) && <span class="num">#{nums.get(p.id)}</span>}<span>{formatDate(p.data.date)}</span></span>
               <span class="main">
@@ -31,6 +34,7 @@ const nums = logNumbers(posts);
           </li>
         ))}
       </ul>
+      </>
     )}
   </div>
 </Base>

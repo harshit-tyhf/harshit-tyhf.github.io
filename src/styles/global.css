@@ -158,6 +158,19 @@ p {
   text-transform: uppercase;
 }
 
+/* Tags/categories that are links (to a filtered list) */
+a.tag,
+a.cat {
+  text-decoration: none;
+}
+a.tag:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+a.cat:hover {
+  filter: brightness(1.2);
+}
+
 .tag-list {
   list-style: none;
   margin: 0;

@@ -166,7 +166,7 @@ const categories = [
                     return (
                       <li>
                         <span class="date">{formatDate(w.data.date)}</span>
-                        {w.data.category && <span class="cat">{w.data.category}</span>}
+                        {w.data.category && <a class="cat" href={withBase(`/writeups/?tag=${encodeURIComponent(w.data.category.toLowerCase())}`)} title="All writeups in this category">{w.data.category}</a>}
                         {href ? <a class="row-title" href={href} {...(isExternal(href) ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{w.data.title}</a> : <span class="row-title">{w.data.title}</span>}
                         {w.data.platform && <span class="where">{w.data.platform}</span>}
                       </li>

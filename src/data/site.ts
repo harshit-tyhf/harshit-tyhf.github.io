@@ -7,7 +7,7 @@ import myPhoto from '../assets/me.jpg';
 export const site = {
   name: 'Harshit Lakhotia',
   handle: 'PseudoELF',
-  title: 'Harshit Lakhotia — security & game development',
+  title: 'Harshit Lakhotia — Crossroads',
   description: 'Portfolio of Harshit Lakhotia: CTF writeups, security tools and games.',
   tagline:
     'Offensive security and game development. Mapping attack surfaces, then building playable ones.',

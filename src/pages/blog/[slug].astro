@@ -2,6 +2,7 @@
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
+import ShareButton from '../../components/ShareButton.astro';
 import { formatDate, published, withBase, logNumbers } from '../../lib/utils';
 
 export async function getStaticPaths() {
@@ -20,7 +21,7 @@ const { Content } = await render(post);
   <article class="container page">
     <a class="back" href={withBase('/blog/')}><Icon name="back" />All logs</a>
     <header>
-      <p class="meta"><time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time><span class="tag">{post.data.tag}</span>{num && <span>Log #{num}</span>}</p>
+      <p class="meta"><time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time><a class="tag" href={withBase(`/blog/?tag=${encodeURIComponent(post.data.tag.toLowerCase())}`)} title="More logs with this tag">{post.data.tag}</a>{num && <span>Log #{num}</span>}<ShareButton /></p>
       <h1>{post.data.title}</h1>
       <p class="excerpt">{post.data.excerpt}</p>
     </header>

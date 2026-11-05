@@ -3,6 +3,7 @@
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
+import TagFilter from '../../components/TagFilter.astro';
 import { formatDate, isExternal, published, withBase } from '../../lib/utils';
 
 const writeups = (await getCollection('security', published))
@@ -19,19 +20,22 @@ const writeupHref = (w: (typeof writeups)[number]) =>
     <header>
       <p class="prompt">$ ls -la ./writeups --all --sort=date</p>
       <h1>Writeups</h1>
-      <p class="count">{writeups.length} {writeups.length === 1 ? 'entry' : 'entries'}</p>
+      <p class="count" id="writeup-count">{writeups.length} {writeups.length === 1 ? 'entry' : 'entries'}</p>
     </header>
 
     {writeups.length === 0 ? (
       <p class="prompt">No writeups yet.</p>
     ) : (
+      <>
+      <TagFilter tags={writeups.flatMap((w) => (w.data.category ? [w.data.category] : []))}
+                 label="Filter writeups by category" countId="writeup-count" />
       <ul class="rows">
         {writeups.map((w) => {
           const href = writeupHref(w);
           return (
-            <li>
+            <li data-tags={(w.data.category ?? '').toLowerCase()}>
               <span class="date">{formatDate(w.data.date)}</span>
-              {w.data.category && <span class="cat">{w.data.category}</span>}
+              {w.data.category && <a class="cat" href={`?tag=${encodeURIComponent(w.data.category.toLowerCase())}`} data-filter-link={w.data.category.toLowerCase()} title="Show only this category">{w.data.category}</a>}
               {href ? <a class="row-title" href={href} {...(isExternal(href) ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{w.data.title}</a> : <span class="row-title">{w.data.title}</span>}
               {w.data.platform && <span class="where">{w.data.platform}</span>}
               {w.data.collab && <span class="where">with {w.data.collab.team}</span>}
@@ -39,6 +43,7 @@ const writeupHref = (w: (typeof writeups)[number]) =>
           );
         })}
       </ul>
+      </>
     )}
     <p class="prompt">$ <span class="blink" aria-hidden="true">█</span></p>
   </div>

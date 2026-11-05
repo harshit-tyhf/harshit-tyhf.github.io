@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import { satteri } from '@astrojs/markdown-satteri'; // Astro's built-in Markdown processor
+import sitemap from '@astrojs/sitemap';
 
 /**
  * GitHub Pages setup
@@ -97,6 +98,8 @@ export default defineConfig({
   site: SITE,
   base: BASE,
   trailingSlash: 'ignore',
+  // Builds sitemap-index.xml: a list of every page, so search engines can find them all.
+  integrations: [sitemap()],
   markdown: {
     processor: satteri({ hastPlugins: [externalLinks] }),
     shikiConfig: {

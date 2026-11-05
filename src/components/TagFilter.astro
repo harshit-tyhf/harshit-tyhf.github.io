@@ -1,0 +1,113 @@
+---
+/**
+ * Row of tag buttons that filters a list on the same page.
+ * Give each list item `data-tags="tag1 tag2"` (lowercase, spaces between tags).
+ * Several tags can be on at once: an item shows if it has ANY of the chosen tags.
+ * The chosen tags are kept in the address (e.g. /blog/?tag=ctf,devlog), so filtered views can be shared.
+ * Links with `data-filter-link="tag"` on the same page switch the filter to just that tag.
+ * Without JavaScript the buttons stay hidden and the full list shows.
+ */
+interface Props {
+  tags: string[];
+  label?: string; // for screen readers
+  countId?: string; // id of an element whose text should show the number of visible items
+}
+const { tags, label = 'Filter by tag', countId } = Astro.props;
+const unique = [...new Set(tags.map((t) => t.toLowerCase()))].sort();
+---
+{unique.length > 1 && (
+  <div class="tag-filter" role="group" aria-label={label} data-count-id={countId} hidden>
+    <button type="button" data-all aria-pressed="true">All</button>
+    {unique.map((t) => <button type="button" data-filter={t} aria-pressed="false">{t}</button>)}
+  </div>
+)}
+
+<script>
+  document.querySelectorAll<HTMLElement>('.tag-filter').forEach((bar) => {
+    const allButton = bar.querySelector<HTMLButtonElement>('button[data-all]')!;
+    const buttons = [...bar.querySelectorAll<HTMLButtonElement>('button[data-filter]')];
+    const known = new Set(buttons.map((b) => b.dataset.filter!));
+    const items = [...document.querySelectorAll<HTMLElement>('[data-tags]')];
+    const count = bar.dataset.countId ? document.getElementById(bar.dataset.countId) : null;
+    let selected = new Set<string>();
+
+    const apply = () => {
+      let shown = 0;
+      for (const item of items) {
+        const match = selected.size === 0 || item.dataset.tags!.split(' ').some((t) => selected.has(t));
+        item.hidden = !match;
+        if (match) shown++;
+      }
+      allButton.setAttribute('aria-pressed', String(selected.size === 0));
+      for (const b of buttons) b.setAttribute('aria-pressed', String(selected.has(b.dataset.filter!)));
+      if (count) count.textContent = `${shown} ${shown === 1 ? 'entry' : 'entries'}`;
+
+      // Update the address (?tag=ctf,web) so the filtered view can be shared.
+      const query = selected.size ? `?tag=${[...selected].map(encodeURIComponent).join(',')}` : '';
+      history.replaceState(null, '', location.pathname + query + location.hash);
+    };
+
+    // Tag buttons switch on/off; "All" clears every tag.
+    for (const b of buttons) {
+      b.addEventListener('click', () => {
+        const tag = b.dataset.filter!;
+        if (selected.has(tag)) selected.delete(tag);
+        else selected.add(tag);
+        apply();
+      });
+    }
+    allButton.addEventListener('click', () => {
+      selected.clear();
+      apply();
+    });
+
+    // Category labels in the list: show just that category without reloading.
+    document.querySelectorAll<HTMLAnchorElement>('a[data-filter-link]').forEach((a) => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        selected = new Set([a.dataset.filterLink!]);
+        apply();
+        bar.scrollIntoView({ block: 'nearest' });
+      });
+    });
+
+    // Start from the address, e.g. ?tag=ctf,web
+    const fromUrl = new URL(location.href).searchParams.get('tag') ?? '';
+    selected = new Set(fromUrl.toLowerCase().split(',').filter((t) => known.has(t)));
+    bar.hidden = false;
+    apply();
+  });
+</script>
+
+<style>
+  .tag-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .tag-filter[hidden],
+  :global([data-tags][hidden]) {
+    display: none !important;
+  }
+  button {
+    min-height: 40px;
+    padding: 0 0.9rem;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: var(--step--1);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  button[aria-pressed='true'] {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+</style>
