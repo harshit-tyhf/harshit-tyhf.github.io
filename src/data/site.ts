@@ -1,3 +1,5 @@
+import myPhoto from '../assets/me.jpg';
+
 /**
  * Everything about YOU that isn't a project lives here.
  * Edit the values; the layout picks them up automatically.
@@ -25,8 +27,10 @@ export const site = {
     'Also open for Internships and collaborations. Reach out on my mail or LinkedIn if you want to work together!',
   ],
   currently: 'Building some games and grinding steganography challenges',
-  // Put a photo in public/files/ and set e.g. '/files/me.jpg'. Leave empty to show a placeholder.
-  photo: '/files/me.jpg',
+  // Your photo lives in src/assets/. To change it, replace that file (or edit the
+  // import at the top of this file). Set photo: undefined to show a placeholder.
+  // It's resized automatically: small for the About box, larger when clicked.
+  photo: myPhoto as ImageMetadata | undefined,
 
   // Files in public/files/. Delete an entry to hide its button.
   documents: [

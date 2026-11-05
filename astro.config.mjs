@@ -11,13 +11,17 @@ import { satteri } from '@astrojs/markdown-satteri'; // Astro's built-in Markdow
  *
  * The deploy workflow fills these in automatically; edit the fallbacks below for local builds.
  */
-const SITE = process.env.SITE_URL ?? 'https://your-username.github.io';
-const BASE = process.env.BASE_PATH ?? '/';
+// Environment variables set by the deploy workflow. (`process` is Node's; the cast
+// just stops the editor complaining, since Node's type definitions aren't installed.)
+const env = /** @type {Record<string, string | undefined>} */ (/** @type {any} */ (globalThis).process.env);
+const SITE = env.SITE_URL ?? 'https://harshit-tyhf.github.io';
+const BASE = env.BASE_PATH ?? '/';
 
 /**
  * Makes links to other websites inside your Markdown (posts, writeups, game pages)
  * open in a new tab. Links to your own pages still open in the same tab.
  */
+/** @type {import('satteri').HastPluginDefinition} */
 const externalLinks = {
   name: 'external-links',
   element: {
@@ -38,9 +42,14 @@ const externalLinks = {
  * Example:  Are you sure you want to continue connecting? [[yes]]
  */
 const INPUT_COLOR = '#E1E4E8'; // matches the command colour in the code theme
+/** Where the [[input]] bits are in the current code block (start, end). */
+/** @type {[number, number][]} */
+let inputRanges = [];
+/** @type {import('shiki').ShikiTransformer} */
 const typedInput = {
   name: 'typed-input',
   preprocess(code) {
+    /** @type {[number, number][]} */
     const ranges = [];
     let out = '';
     let last = 0;
@@ -50,12 +59,12 @@ const typedInput = {
       out += m[1];
       last = m.index + m[0].length;
     }
-    this.meta.typedInput = ranges;
+    inputRanges = ranges;
     return out + code.slice(last);
   },
   tokens(lines) {
-    const ranges = this.meta.typedInput;
-    if (!ranges?.length) return;
+    const ranges = inputRanges;
+    if (!ranges.length) return;
     return lines.map((line) =>
       line.flatMap((token) => {
         const start = token.offset;

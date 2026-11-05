@@ -1,6 +1,6 @@
 ---
 import { getCollection, render, type CollectionEntry } from 'astro:content';
-import { Image } from 'astro:assets';
+import { Image, getImage } from 'astro:assets';
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import Links from '../../components/Links.astro';
@@ -19,18 +19,35 @@ const d = game.data;
 const { Content } = await render(game);
 const hasBody = Boolean(game.body && game.body.trim());
 
+// Preview image for shared links (Discord, WhatsApp, LinkedIn…): a resized,
+// compressed copy of the cover, or of the first screenshot if there's no cover.
+const shareSource = d.cover ?? d.screenshots[0];
+const shareImage = shareSource
+  ? (await getImage({ src: shareSource, width: Math.min(1200, shareSource.width), format: 'jpg', quality: 80 })).src
+  : undefined;
+
+// Frame shown before the gameplay video starts: a resized copy, not the full-size original.
+const poster = d.video && shareSource
+  ? (await getImage({ src: shareSource, width: Math.min(1200, shareSource.width), format: 'webp' })).src
+  : undefined;
+
+/** Large, sharp version of an image, shown when it's clicked (see the lightbox in Base.astro). */
+const fullSize = async (image: ImageMetadata) =>
+  (await getImage({ src: image, width: Math.min(1920, image.width), format: 'webp', quality: 85 })).src;
+
 // Build the media list from whatever exists. Missing pieces are simply skipped.
 type Media =
   | { kind: 'video'; label: string; src: string }
   | { kind: 'youtube'; label: string; id: string }
-  | { kind: 'image'; label: string; image: ImageMetadata };
+  | { kind: 'image'; label: string; image: ImageMetadata; full: string };
 
 const media: Media[] = [];
 if (d.video) media.push({ kind: 'video', label: 'Gameplay', src: withBase(d.video) });
 else if (d.youtube) media.push({ kind: 'youtube', label: 'Gameplay', id: d.youtube });
-d.screenshots.forEach((image, i) =>
-  media.push({ kind: 'image', label: `Shot ${String(i + 1).padStart(2, '0')}`, image }),
-);
+for (const [i, image] of d.screenshots.entries()) {
+  media.push({ kind: 'image', label: `Shot ${String(i + 1).padStart(2, '0')}`, image, full: await fullSize(image) });
+}
+const coverFull = media.length === 0 && d.cover ? await fullSize(d.cover) : undefined;
 
 const specLabels: Record<string, string> = {
   engine: 'Engine',
@@ -43,7 +60,7 @@ const specs = Object.entries(d.specs).filter(([, v]) => v);
 if (d.collab) specs.unshift(['collab', `${d.collab.team} (${d.collab.role})`]);
 specLabels.collab = 'Made with';
 ---
-<Base title={d.title} description={d.hook} image={d.cover?.src} zone="arcade">
+<Base title={d.title} description={d.hook} image={shareImage} zone="arcade">
   <div class="container page">
     <a class="back" href={withBase('/#games')}><Icon name="back" />Back to operations</a>
 
@@ -58,13 +75,13 @@ specLabels.collab = 'Made with';
         <div class="stage">
           {media.length === 0 && (
             d.cover
-              ? <Image src={d.cover} alt={`${d.title} key art`} widths={[700, 1200]} sizes="(max-width: 900px) 100vw, 760px" />
+              ? <Image src={d.cover} alt={`${d.title} key art`} widths={[700, 1200]} sizes="(max-width: 900px) 100vw, 760px" data-full={coverFull} />
               : <div class="empty">Media coming soon</div>
           )}
           {media.map((m, i) => (
             <div class="slide" id={`slide-${i}`} data-slide={i} hidden={i !== 0}>
               {m.kind === 'video' && (
-                <video src={m.src} controls preload="metadata" playsinline poster={d.cover?.src}>
+                <video src={m.src} controls preload="metadata" playsinline poster={poster}>
                   <a href={m.src}>Download the gameplay video</a>
                 </video>
               )}
@@ -78,7 +95,8 @@ specLabels.collab = 'Made with';
               )}
               {m.kind === 'image' && (
                 <Image src={m.image} alt={`${d.title}: ${m.label.toLowerCase()}`}
-                       widths={[700, 1200, 1600]} sizes="(max-width: 900px) 100vw, 760px" loading={i === 0 ? 'eager' : 'lazy'} />
+                       widths={[700, 1200, 1600]} sizes="(max-width: 900px) 100vw, 760px" loading={i === 0 ? 'eager' : 'lazy'}
+                       data-full={m.full} />
               )}
             </div>
           ))}

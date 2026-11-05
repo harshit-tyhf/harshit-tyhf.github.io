@@ -262,7 +262,8 @@ p {
 }
 
 /* Click-to-enlarge images */
-.prose img {
+.prose img,
+img[data-full] {
   cursor: zoom-in;
 }
 .lightbox {

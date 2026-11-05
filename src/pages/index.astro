@@ -1,5 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
+import { Image, getImage } from 'astro:assets';
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import Links from '../components/Links.astro';
@@ -33,9 +34,20 @@ const collabProjects = projects.filter((p) => p.data.collab);
 
 const posts = (await getCollection('blog', published)).sort(byDateDesc).slice(0, 3);
 
+/** Larger, sharp version of the About photo, shown when it's clicked. */
+const photoFull = site.photo
+  ? (await getImage({ src: site.photo, width: Math.min(1200, site.photo.width), format: 'webp', quality: 85 })).src
+  : undefined;
+
 /** A writeup gets its own page when its Markdown file has body text. */
 const writeupHref = (w: (typeof security)[number]) =>
   w.body && w.body.trim() ? withBase(`/writeups/${w.id}/`) : w.data.links.find((l) => l.url)?.url;
+
+/**
+ * Email links are scrambled so spam bots reading the page's code can't harvest the
+ * address. The real mailto: link is rebuilt in the browser (see the script at the bottom).
+ */
+const scramble = (url: string) => btoa(url).split('').reverse().join('');
 
 const categories = [
   { id: 'games', label: 'Game dev', show: games.length > 0 },
@@ -80,7 +92,9 @@ const categories = [
       <SectionHeading num="01" title="About" />
       <div class="about">
         <div class="photo">
-          {site.photo ? <img src={withBase(site.photo)} alt={`Photo of ${site.name}`} /> : <span>Add a photo in src/data/site.ts</span>}
+          {site.photo
+            ? <Image src={site.photo} alt={`Photo: ${site.name}`} widths={[200, 400]} sizes="200px" data-full={photoFull} />
+            : <span>Add a photo in src/data/site.ts</span>}
         </div>
         <div class="about-text">
           {site.about.map((p) => <p>{p}</p>)}
@@ -271,8 +285,10 @@ const categories = [
       <ul class="comms">
         {site.socials.map((s, i) => (
           <li>
-            <a class:list={['btn', i === 0 && 'btn--solid']} href={s.url}
-               {...(s.url.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+            <a class:list={['btn', i === 0 && 'btn--solid']}
+               {...(s.url.startsWith('mailto:')
+                 ? { href: '#comms', 'data-mail': scramble(s.url) }
+                 : { href: s.url, ...(s.url.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {}) })}>
               <Icon name={s.kind} />{s.label}
             </a>
           </li>
@@ -283,6 +299,14 @@ const categories = [
 </Base>
 
 <script>
+  // Unscramble email links once a person points at, focuses or taps them.
+  document.querySelectorAll<HTMLAnchorElement>('a[data-mail]').forEach((a) => {
+    const reveal = () => {
+      a.href = atob(a.dataset.mail!.split('').reverse().join(''));
+    };
+    for (const ev of ['pointerenter', 'focus', 'touchstart', 'click']) a.addEventListener(ev, reveal, { once: true });
+  });
+
   // Pause autoplaying preview loops for visitors who prefer reduced motion.
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     document.querySelectorAll<HTMLVideoElement>('video[data-motion]').forEach((v) => {

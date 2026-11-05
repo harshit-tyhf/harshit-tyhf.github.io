@@ -10,20 +10,25 @@ import '@fontsource/ibm-plex-sans/600.css';
 import '../styles/theme.css';
 import '../styles/global.css';
 
+import { getImage } from 'astro:assets';
 import Header from '../components/Header.astro';
+import defaultShare from '../assets/share-default.png';
 import { site } from '../data/site';
 import { withBase } from '../lib/utils';
 
 interface Props {
   title?: string;
   description?: string;
-  image?: string; // social preview image (absolute URL or /path)
+  image?: string; // social preview image (absolute URL or /path); pages without one use the default banner
   zone?: 'arcade' | 'terminal';
 }
 const { title, description = site.description, image, zone } = Astro.props;
 const fullTitle = title ? `${title} — ${site.name}` : site.title;
 const canonical = new URL(Astro.url.pathname, Astro.site);
-const ogImage = image ? new URL(image, Astro.site).toString() : undefined;
+// Preview image for shared links. Pages that don't pass their own (game pages do)
+// get the site banner in src/assets/share-default.png.
+const shareSrc = image ?? (await getImage({ src: defaultShare, format: 'jpg', quality: 85 })).src;
+const ogImage = new URL(shareSrc, Astro.site).toString();
 ---
 <!doctype html>
 <html lang="en">
@@ -41,6 +46,8 @@ const ogImage = image ? new URL(image, Astro.site).toString() : undefined;
     <meta property="og:url" content={canonical} />
     {ogImage && <meta property="og:image" content={ogImage} />}
     <meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
+    <!-- Visitor stats: https://pseudoelf.goatcounter.com (your own localhost visits aren't counted) -->
+    <script is:inline data-goatcounter="https://pseudoelf.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
   </head>
   <body class:list={[zone && `zone-${zone}`]}>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -66,14 +73,14 @@ const ogImage = image ? new URL(image, Astro.site).toString() : undefined;
     const caption = dialog.querySelector('.lightbox-caption')!;
 
     const open = (img: HTMLImageElement) => {
-      big.src = img.currentSrc || img.src;
+      big.src = img.dataset.full || img.currentSrc || img.src; // data-full = a larger version, if there is one
       big.alt = img.alt;
       caption.textContent =
         img.closest('figure')?.querySelector('figcaption')?.textContent ?? img.alt;
       dialog.showModal();
     };
 
-    document.querySelectorAll<HTMLImageElement>('.prose img').forEach((img) => {
+    document.querySelectorAll<HTMLImageElement>('.prose img, img[data-full]').forEach((img) => {
       img.tabIndex = 0;
       img.setAttribute('role', 'button');
       img.setAttribute('aria-label', `Enlarge image${img.alt ? `: ${img.alt}` : ''}`);
