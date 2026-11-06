@@ -17,7 +17,7 @@ interface Props {
 const { post, num } = Astro.props;
 const { Content } = await render(post);
 ---
-<Base title={post.data.title} description={post.data.excerpt}>
+<Base title={post.data.title} description={post.data.excerpt} card="small">
   <article class="container page">
     <a class="back" href={withBase('/blog/')}><Icon name="back" />All logs</a>
     <header>

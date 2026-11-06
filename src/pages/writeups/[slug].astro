@@ -19,9 +19,9 @@ const { entry } = Astro.props;
 const d = entry.data;
 const { Content } = await render(entry);
 ---
-<Base title={d.title} description={d.summary} zone="terminal">
+<Base title={d.title} description={d.summary} zone="terminal" card="small">
   <div class="container page">
-    <a class="back" href={withBase('/#cyber')}><Icon name="back" />cd ../cybersec</a>
+    <a class="back" href={withBase('/#cyber')}><Icon name="back" />cd ~/cybersec</a>
     <header>
       <p class="meta">
         {d.date && <span>{formatDate(d.date)}</span>}
