@@ -8,7 +8,7 @@
 import {
   siGithub, siItchdotio, siSteam, siYoutube, siUnity, siGodotengine, siBlender,
   siWireshark, siBurpsuite, siPython, siCplusplus, siGnubash, siLinux, siGit, siDocker,
-  siHackthebox, siTryhackme, siKalilinux,
+  siHackthebox, siTryhackme, siKalilinux, siGoogleplay, siAppstore,
 } from 'simple-icons';
 
 interface Props {
@@ -19,7 +19,7 @@ interface Props {
 const { name, size = 20, label } = Astro.props;
 
 const BRAND: Record<string, { path: string }> = {
-  github: siGithub, itch: siItchdotio, steam: siSteam, youtube: siYoutube,
+  github: siGithub, itch: siItchdotio, steam: siSteam, googleplay: siGoogleplay, appstore: siAppstore, youtube: siYoutube,
   unity: siUnity, godot: siGodotengine, blender: siBlender,
   wireshark: siWireshark, burpsuite: siBurpsuite, python: siPython, cplusplus: siCplusplus,
   bash: siGnubash, linux: siLinux, git: siGit, docker: siDocker,

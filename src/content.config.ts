@@ -18,7 +18,7 @@ const link = z.object({
   label: z.string(),
   url: z.string(),
   kind: z
-    .enum(['github', 'itch', 'steam', 'youtube', 'web', 'docs', 'download', 'play'])
+    .enum(['github', 'itch', 'steam', 'googleplay', 'appstore', 'youtube', 'web', 'docs', 'download', 'play'])
     .default('web'),
 });
 

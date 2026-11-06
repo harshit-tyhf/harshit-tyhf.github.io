@@ -43,7 +43,11 @@ type Media =
 
 const media: Media[] = [];
 if (d.video) media.push({ kind: 'video', label: 'Gameplay', src: withBase(d.video) });
-else if (d.youtube) media.push({ kind: 'youtube', label: 'Gameplay', id: d.youtube });
+else if (d.youtube) {
+  // Accept either the bare video ID or a full YouTube link (youtu.be/…, watch?v=…, /shorts/…, /embed/…).
+  const id = d.youtube.match(/(?:youtu\.be\/|[?&]v=|\/embed\/|\/shorts\/)([\w-]{11})/)?.[1] ?? d.youtube.trim();
+  media.push({ kind: 'youtube', label: 'Gameplay', id });
+}
 for (const [i, image] of d.screenshots.entries()) {
   media.push({ kind: 'image', label: `Shot ${String(i + 1).padStart(2, '0')}`, image, full: await fullSize(image) });
 }
@@ -133,7 +137,17 @@ specLabels.collab = 'Made with';
           <div class="panel">
             <h2 class="panel-title">Specs</h2>
             <dl>
-              {specs.map(([k, v]) => (<><dt>{specLabels[k] ?? k}</dt><dd>{v}</dd></>))}
+              {specs.map(([k, v]) => (
+                <>
+                  <dt>{specLabels[k] ?? k}</dt>
+                  <dd>
+                    {/* "Made with": the team name links to the team's site when teamUrl is set */}
+                    {k === 'collab' && d.collab?.teamUrl
+                      ? <><a href={d.collab.teamUrl} target="_blank" rel="noopener noreferrer">{d.collab.team}</a> ({d.collab.role})</>
+                      : v}
+                  </dd>
+                </>
+              ))}
             </dl>
           </div>
         )}

@@ -29,6 +29,7 @@ features:
   - A mechanic you're proud of
   - Something technical you solved
   - What makes it replayable
+draft: true
 ---
 
 Everything below the frontmatter becomes the **Mission brief** on the game's page.

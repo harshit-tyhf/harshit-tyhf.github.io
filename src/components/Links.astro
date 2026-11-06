@@ -18,7 +18,7 @@ interface Props {
 const { links, variant = 'text' } = Astro.props;
 
 const ICON: Record<string, string> = {
-  github: 'github', itch: 'itch', steam: 'steam', youtube: 'youtube',
+  github: 'github', itch: 'itch', steam: 'steam', googleplay: 'googleplay', appstore: 'appstore', youtube: 'youtube',
   web: 'external', docs: 'docs', download: 'download', play: 'gamepad',
 };
 const shown = links.filter((l) => l.url && l.url.trim() !== '');

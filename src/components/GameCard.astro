@@ -16,13 +16,15 @@ const hasVideo = Boolean(d.video || d.youtube);
 const shots = d.screenshots.length;
 // Still image for the card: the cover if there is one, otherwise the first screenshot.
 const still = d.cover ?? d.screenshots[0];
+// Which links get an icon button on the card (the rest show on the game's page).
+const CARD_LINK_KINDS = ['github', 'itch', 'steam', 'googleplay', 'appstore'];
 // Frame shown before the preview loop starts: a resized copy, not the full-size original.
 const poster = d.previewLoop && still
   ? (await getImage({ src: still, width: Math.min(700, still.width), format: 'webp' })).src
   : undefined;
 ---
 <article class="card">
-  <a class="card-main" href={href}>
+  <div class="card-main">
     <div class="media">
       {d.previewLoop ? (
         <video src={withBase(d.previewLoop)} muted loop playsinline autoplay preload="metadata"
@@ -37,16 +39,24 @@ const poster = d.previewLoop && still
       {shots > 0 && <span class="badge badge--right"><Icon name="image" size={14} />{shots}</span>}
     </div>
     <div class="body">
-      <h3>{d.title}</h3>
-      {d.collab && <p class="crew">With {d.collab.team} · {d.collab.role}</p>}
+      <!-- The title link is stretched over the whole image + text area, so clicking anywhere there opens the game. -->
+      <h3><a class="stretched" href={href}>{d.title}</a></h3>
+      {d.collab && (
+        <p class="crew">
+          {d.collab.teamUrl
+            ? <a class="team-link" href={d.collab.teamUrl} target="_blank" rel="noopener noreferrer">With {d.collab.team}</a>
+            : <>With {d.collab.team}</>}
+          {' · '}{d.collab.role}
+        </p>
+      )}
       <p>{d.hook}</p>
     </div>
-  </a>
+  </div>
   <div class="foot">
     {d.tags.length > 0 && (
       <ul class="tag-list">{d.tags.map((t) => <li class="tag">{t}</li>)}</ul>
     )}
-    <Links links={d.links.filter((l) => l.kind === 'github' || l.kind === 'itch' || l.kind === 'steam')} variant="icon" />
+    <Links links={d.links.filter((l) => CARD_LINK_KINDS.includes(l.kind))} variant="icon" />
   </div>
 </article>
 
@@ -61,8 +71,32 @@ const poster = d.previewLoop && still
     border-color: var(--accent);
   }
   .card-main {
+    position: relative; /* the stretched title link covers this area */
+  }
+  .stretched {
     color: inherit;
     text-decoration: none;
+  }
+  .stretched::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .stretched:focus-visible {
+    outline: none;
+  }
+  .card:has(.stretched:focus-visible) {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+  }
+  .team-link {
+    position: relative;
+    z-index: 1; /* sits above the stretched link, so it opens the studio page instead */
+    color: inherit;
+    text-underline-offset: 3px;
+  }
+  .team-link:hover {
+    color: var(--text-strong);
   }
   .media {
     position: relative;
