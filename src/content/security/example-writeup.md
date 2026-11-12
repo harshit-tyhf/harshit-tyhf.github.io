@@ -7,6 +7,7 @@ category: web
 platform: Example CTF 2026
 links:
   - { label: Challenge page, url: "https://example.com", kind: web }
+draft: true
 ---
 
 ## Recon

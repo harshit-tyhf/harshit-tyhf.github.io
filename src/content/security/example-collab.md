@@ -10,4 +10,5 @@ collab:
 links:
   - { label: Team site, url: "https://example.com", kind: web }
   - { label: Repo, url: "https://github.com", kind: github }
+draft: true
 ---

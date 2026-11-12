@@ -23,7 +23,7 @@ specs:
   role: UI Programmer
 ---
 
-You and your friends wake up in a cursed house. The Fear Man is looking for you. You need to escape before he catches you, but the problem is, there are 5 people and only 3 keys, who escapes and who gets left behind, find out by playing.
+You and your friends wake up in a cursed house. The Fear Man is looking for you. You need to escape before he catches you, but the problem is, there are 5 people and only 3 keys. Who escapes and who gets left behind? Find out by playing.
 
 ### My role:
 I worked on the UI elements in the game. The Home screen, settings menu, panels, HUD, programming.

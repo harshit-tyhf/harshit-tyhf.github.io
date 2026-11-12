@@ -8,4 +8,5 @@ category: pwn
 platform: HTB (retired)
 links:
   - { label: Read writeup, url: "https://github.com", kind: github }
+draft: true
 ---

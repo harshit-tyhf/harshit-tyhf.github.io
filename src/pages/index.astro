@@ -17,6 +17,12 @@ const byDateDesc = (a: { data: { date?: Date } }, b: { data: { date?: Date } }) 
 const games = (await getCollection('games', published)).sort(byOrder);
 const soloGames = games.filter((g) => !g.data.collab);
 const collabGames = games.filter((g) => g.data.collab);
+/** How many games the homepage shows (lowest `order` first). The rest are on /games/. */
+const GAMES_ON_HOME = 4;
+const COOP_ON_HOME = 2;
+const homeSolo = soloGames.slice(0, GAMES_ON_HOME);
+const homeCoop = collabGames.slice(0, COOP_ON_HOME);
+const hiddenGames = games.length - homeSolo.length - homeCoop.length;
 
 const security = (await getCollection('security', published)).sort(byDateDesc);
 const writeups = security.filter((s) => s.data.type === 'writeup' && !s.data.collab);
@@ -34,6 +40,21 @@ const collabProjects = projects.filter((p) => p.data.collab);
 
 const posts = (await getCollection('blog', published)).sort(byDateDesc).slice(0, 3);
 
+/** Ops board: one equal tile per area at the top of Operations, so neither is buried by scroll order. */
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const opsBoard = {
+  games: {
+    count: games.length,
+    detail: [soloGames.length && `${soloGames.length} solo`, collabGames.length && `${collabGames.length} co-op`].filter(Boolean).join(' · '),
+    featured: games[0]?.data.title,
+  },
+  cyber: {
+    count: allWriteupsCount,
+    detail: [tools.length && plural(tools.length, 'tool'), collabSecurity.length && `${collabSecurity.length} with teams`].filter(Boolean).join(' · '),
+    latest: security.find((s) => s.data.type === 'writeup')?.data.title,
+  },
+};
+
 /** Larger, sharp version of the About photo, shown when it's clicked. */
 const photoFull = site.photo
   ? (await getImage({ src: site.photo, width: Math.min(1200, site.photo.width), format: 'webp', quality: 85 })).src
@@ -50,9 +71,10 @@ const writeupHref = (w: (typeof security)[number]) =>
 const scramble = (url: string) => btoa(url).split('').reverse().join('');
 
 const categories = [
-  { id: 'games', label: 'Game dev', show: games.length > 0 },
-  { id: 'cyber', label: 'Cybersec', show: security.length > 0 },
-  { id: 'other', label: 'Other', show: projects.length > 0 },
+  { id: 'games', label: 'Game Dev', show: games.length > 0 },
+  // Cybersec and Other always show; when empty they display an "in progress" placeholder.
+  { id: 'cyber', label: 'Cybersec', show: true },
+  { id: 'other', label: 'Other', show: true },
 ].filter((c) => c.show);
 ---
 <Base>
@@ -126,29 +148,51 @@ const categories = [
         )}
       </SectionHeading>
 
+      <!-- OPS BOARD: both areas side by side, equal weight -->
+      <div class="ops-board">
+        <a class="op-tile bracket zone-arcade" href="#games">
+          <span class="op-head"><span>OP-01 // Game Dev</span><span class="op-status">● active</span></span>
+          <span class="op-count">{opsBoard.games.count}<small>{opsBoard.games.count === 1 ? 'operation' : 'operations'}</small></span>
+          <span class="op-detail">{opsBoard.games.detail}</span>
+          {opsBoard.games.featured && <span class="op-line">featured: {opsBoard.games.featured}</span>}
+          <span class="op-open">open ▸</span>
+        </a>
+        <a class="op-tile bracket zone-terminal" href="#cyber">
+          <span class="op-head"><span>OP-02 // Cybersec</span>
+            <span class="op-status">{security.length ? '● active' : '● upgrading 34%'}</span></span>
+          <span class="op-count">{opsBoard.cyber.count}<small>{opsBoard.cyber.count === 1 ? 'writeup' : 'writeups'}</small></span>
+          <span class="op-detail">{security.length ? opsBoard.cyber.detail : 'first writeups compiling'}</span>
+          {opsBoard.cyber.latest && <span class="op-line">latest: {opsBoard.cyber.latest}</span>}
+          <span class="op-open">open ▸</span>
+        </a>
+      </div>
+
       {games.length > 0 && (
         <div id="games" class="zone-arcade zone-panel games">
           <div class="zone-head">
-            <h3>Game dev</h3>
+            <h3>Game Dev</h3>
             <p>Open a game for gameplay, screenshots and links.</p>
           </div>
-          {soloGames.length > 0 && (
+          {homeSolo.length > 0 && (
             <div class="grid-cards">
-              {soloGames.map((g, i) => <GameCard game={g} level={i + 1} />)}
+              {homeSolo.map((g, i) => <GameCard game={g} level={i + 1} />)}
             </div>
           )}
-          {collabGames.length > 0 && (
+          {homeCoop.length > 0 && (
             <div class="sub">
               <h4 class="sub-title"><Icon name="users" />Co-op missions</h4>
               <div class="grid-cards">
-                {collabGames.map((g) => <GameCard game={g} />)}
+                {homeCoop.map((g) => <GameCard game={g} />)}
               </div>
             </div>
+          )}
+          {hiddenGames > 0 && (
+            <a class="btn all-games" href={withBase('/games/')}>All games ({games.length}) ▸</a>
           )}
         </div>
       )}
 
-      {security.length > 0 && (
+      {(
         <div id="cyber" class="zone-terminal terminal">
           <div class="term-bar">
             <span>root@{site.handle}:~/cybersec</span>
@@ -156,6 +200,18 @@ const categories = [
           </div>
           <div class="term-body">
             <h3 class="term-title">Cybersec</h3>
+
+            {security.length === 0 && (
+              <div class="pending" aria-label="Writeups and tools coming soon">
+                <p class="prompt">$ ls -la ./writeups</p>
+                <p class="out">total 0</p>
+                <p class="prompt">$ sudo apt upgrade writeups</p>
+                <p class="out">Reading package lists... Done</p>
+                <p class="out">Unpacking first-writeups ...</p>
+                <p class="out"><span class="bar">[#######</span>.............<span class="bar">]</span> 34%</p>
+                <p class="out"><span class="blink" aria-hidden="true">█</span></p>
+              </div>
+            )}
 
             {writeups.length > 0 && (
               <>
@@ -205,14 +261,21 @@ const categories = [
                 </div>
               </>
             )}
-            <p class="prompt">$ <span class="blink" aria-hidden="true">█</span></p>
+            {/* The prompt only comes back once there's content; while "upgrading", the placeholder shows a bare cursor. */}
+            {security.length > 0 && <p class="prompt">$ <span class="blink" aria-hidden="true">█</span></p>}
           </div>
         </div>
       )}
 
-      {projects.length > 0 && (
+      {(
         <div id="other" class="other">
           <h3 class="zone-label">Other</h3>
+          {projects.length === 0 && (
+            <div class="bracket pending-other" aria-label="Other projects coming soon">
+              <p><span class="accent">$</span> make side-projects</p>
+              <p class="muted">[ building ] compiling first entries<span class="blink" aria-hidden="true">_</span></p>
+            </div>
+          )}
           {soloProjects.length > 0 && (
             <div class="grid-cards">
               {soloProjects.map((p) => (
@@ -619,6 +682,105 @@ const categories = [
     flex-direction: column;
     gap: 1.5rem;
     scroll-margin-top: 1rem;
+  }
+  /* Ops board */
+  .ops-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    gap: 1.25rem;
+  }
+  .op-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 1.4rem 1.6rem;
+    text-decoration: none;
+    font-family: var(--font-body);
+    --surface: var(--bg);
+  }
+  .op-tile > * {
+    color: var(--text);
+  }
+  .op-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.3rem 1rem;
+    font-size: var(--step--1);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .op-head > span:first-child,
+  .op-status {
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .op-count {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    color: var(--text-strong);
+    font: 700 var(--step-3) / 1.1 var(--font-display);
+  }
+  .zone-terminal .op-count {
+    font-size: 2.6rem; /* the terminal pixel font runs small, so size it up to match */
+  }
+  .op-count small {
+    color: var(--muted);
+    font: 400 var(--step--1) var(--font-body);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .op-detail,
+  .op-line {
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+  .op-open {
+    margin-top: auto;
+    padding-top: 0.4rem;
+    color: var(--accent);
+    font-size: var(--step--1);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .op-tile:hover .op-open {
+    color: var(--accent-hover);
+  }
+  .op-tile:hover {
+    outline: 1px solid var(--accent);
+  }
+  .all-games {
+    align-self: flex-start;
+  }
+
+  /* "In progress" placeholders for empty sections */
+  .pending {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .pending .out {
+    color: var(--text);
+    opacity: 0.85;
+  }
+  .pending .bar {
+    color: var(--accent);
+  }
+  .pending-other {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.4rem 1.6rem;
+    max-width: 36rem;
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+  }
+  .pending-other .accent {
+    color: var(--accent);
+  }
+  .pending-other .muted {
+    color: var(--muted);
   }
   .zone-label {
     color: var(--accent);

@@ -6,4 +6,5 @@ tags: [TypeScript, Web]
 links:
   - { label: Repo, url: "https://github.com", kind: github }
   - { label: Live, url: "https://example.com", kind: web }
+draft: true
 ---

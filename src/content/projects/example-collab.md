@@ -7,4 +7,5 @@ collab:
   period: Jan – Apr 2026
 links:
   - { label: Website, url: "https://example.com", kind: web }
+draft: true
 ---
