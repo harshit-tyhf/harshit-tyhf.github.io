@@ -202,6 +202,18 @@ let SETTLE_GAP_START = 1.0;  // least time between obstacles on different tracks
 let SETTLE_GAP_END = 0.75;   // the same at full difficulty (it never gets shorter than this)
 let RAMP_S = 80;             // seconds until the obstacle pattern reaches full difficulty
 
+// Late game: after RAMP_S, spacing keeps tightening slowly so long runs still get harder.
+let LATE_RAMP_S = 160;       // seconds (after RAMP_S) over which the late tightening happens
+let GAP_MAX_LATE = 1.0;      // longest gap between obstacles on the same track, at the very end (1.25 before the late ramp)
+let LANE_GAP_LATE = 0.42;    // least time between obstacles on different tracks, at the very end
+let SWAP_GAP_LATE = 1.2;     // seconds of empty track before a switch, at the very end
+
+// Skilled players: a higher best score makes the game reach its peak sooner, but the peak
+// itself is the same for everyone, so a new record never makes the game harder overall.
+let SKILL_FROM = 300;        // best score (m) where the faster ramp begins
+let SKILL_TO = 1200;         // best score (m) where it reaches its limit
+let SKILL_MAX_RATE = 1.5;    // at the limit, difficulty rises this many times faster
+
 let JT = 0.62, JH = 1.75;    // hop: how long it lasts, how high it goes
 let RT = 0.62;               // roll: how long it lasts
 let ST = 0.28;               // swap: how long the crossing takes
@@ -278,10 +290,13 @@ let obstacles = [], particles = [];
 const gen = { x: 0, types: ['g', 'o'], n: 0, lastFake: false };
 let deadT = 0, hit = null, overT = 0, scorePulse = 0, lastMile = 0;
 let paused = false, countdown = 0, usingKeys = false, mismatch = false;
+let rate = 1;               // how fast difficulty rises this run (set from the best score when a run starts)
+const rampT = () => time * rate;   // the difficulty clock
 const COUNT_STEP = 0.5;    // each number of the resume countdown, in seconds
 const seen = { hop: false, roll: false, swaps: 0 };
 
 function reset() {
+  rate = 1 + (SKILL_MAX_RATE - 1) * clamp((best - SKILL_FROM) / Math.max(1, SKILL_TO - SKILL_FROM), 0, 1);
   time = 0; dist = 0; speed = V0; score = 0; lastMile = 0;
   laneAnimal = ['cat', 'dil'];
   A.cat.act = -1; A.dil.act = -1; A.cat.rec = 0; A.dil.rec = 0;
@@ -305,23 +320,55 @@ function addOb(lane, x) {
 function genSegment() {
   const v = speed;
   if (gen.n === 0) {
-    // Opening stretch: one obstacle at a time, alternating tracks, then the first switch.
-    [2.4, 4.0, 5.4, 6.7, 7.9, 9.0].forEach((t, i) => addOb(i % 2, V0 * t * 1.03));
-    gen.x = V0 * (9.0 + SWAP_GAP_START + 0.4) * 1.03;   // the first switch gets extra room
-    gen.types.reverse(); gen.n = 1;
+    gen.n = 1;
+    if (seen.swaps >= 2 || best >= 150) {
+      // Returning player: a short run-up, then straight into the normal pattern.
+      gen.x = V0 * 1.6;
+      return;
+    }
+    // First-time opening: one obstacle at a time so each move is learned, then the first switch.
+    // The count, starting track and timing vary so it is not the same every run.
+    const count = 4 + Math.floor(Math.random() * 3);          // 4 to 6 obstacles
+    let lane = Math.random() < 0.5 ? 0 : 1, t = rnd(2.2, 2.7), lastT = t;
+    for (let i = 0; i < count; i++) {
+      addOb(lane, V0 * t * 1.03); lastT = t;
+      t += rnd(1.15, 1.7);
+      // The first two always use both tracks; after that a track sometimes repeats.
+      if (i === 0 || Math.random() < 0.75) lane = 1 - lane;
+    }
+    gen.x = V0 * (lastT + SWAP_GAP_START + 0.4) * 1.03;      // the first switch gets extra room
+    gen.types.reverse();
     return;
   }
-  const d = Math.min(1, time / RAMP_S);
-  const dur = lerp(rnd(4, 6.5), rnd(2.6, 4.6), d);
-  const floor = Math.max(JT, RT) + RECOVER_S + 0.1;   // always time to finish a move and recover
-  const gmin = Math.max(lerp(1.0, 0.72, d), floor), gmax = Math.max(lerp(1.9, 1.25, d), floor + 0.3);
-  const sep = lerp(LANE_GAP_START, LANE_GAP_END, d) * v;   // never crowd both tracks at once
+  const d = Math.min(1, rampT() / RAMP_S);
+  const d2 = clamp((rampT() - RAMP_S) / LATE_RAMP_S, 0, 1);   // 0 until RAMP_S, then rises to 1
+  const floor = Math.max(JT, RT) + RECOVER_S + 0.1;        // always time to finish a move and recover
+  const gmin = Math.max(lerp(1.0, 0.72, d), floor);
+  const gmax = Math.max(lerp(lerp(1.9, 1.25, d), GAP_MAX_LATE, d2), floor + 0.1);
+
+  // Each segment picks a shape, so the rhythm between switches keeps changing.
+  //   mixed:     both tracks busy, each with its own pace and occasional rests
+  //   lopsided:  one track busy, the other quiet (several obstacles in a row on one track)
+  //   quick:     a short burst of one or two obstacles per track, then an early switch
+  const r = Math.random();
+  const shape = (gen.n >= 2 && r < 0.2) ? 'quick' : (r < 0.55 ? 'mixed' : 'lopsided');
+  const dur = shape === 'quick' ? rnd(1.5, 2.3) : lerp(rnd(3.4, 7), rnd(2.4, 5.2), d);
+  const pace = shape === 'lopsided'
+    ? (Math.random() < 0.5 ? [rnd(0.85, 1.0), rnd(1.7, 2.4)] : [rnd(1.7, 2.4), rnd(0.85, 1.0)])
+    : [rnd(0.85, 1.3), rnd(0.85, 1.3)];
+  const restChance = shape === 'mixed' ? 0.22 : 0.1;       // a track occasionally skips a beat
+
+  const sep = lerp(lerp(LANE_GAP_START, LANE_GAP_END, d), LANE_GAP_LATE, d2) * v;   // never crowd both tracks at once
   const start = gen.x, end = start + dur * v;
   const settleEnd = start + lerp(SETTLE_S_START, SETTLE_S_END, d) * v;   // calmer stretch right after a switch
   const settleGap = lerp(SETTLE_GAP_START, SETTLE_GAP_END, d) * v;
   const sepAt = (x) => x < settleEnd ? Math.max(sep, settleGap) : sep;
-  const nx = [start + rnd(0, 0.5) * v, start + rnd(0.3, 0.9) * v];
-  if (Math.random() < 0.5) nx.reverse();
+  const gapFor = (l) => {
+    let gap = rnd(gmin, gmax) * pace[l];
+    if (Math.random() < restChance) gap *= rnd(1.7, 2.4);
+    return Math.max(gap, floor) * v;
+  };
+  const nx = [start + rnd(0, 0.9) * v, start + rnd(0, 0.9) * v];
   const lastX = [-1e9, -1e9];
   for (;;) {
     const l = nx[0] <= nx[1] ? 0 : 1, o = 1 - l;
@@ -329,12 +376,12 @@ function genSegment() {
     if (Math.abs(x - lastX[o]) < sepAt(x)) x = lastX[o] + sepAt(x);
     if (x > end) { nx[l] = Infinity; if (nx[o] === Infinity) break; continue; }
     addOb(l, x); lastX[l] = x;
-    nx[l] = x + rnd(gmin, gmax) * v;
+    nx[l] = x + gapFor(l);
   }
   // Clear stretch after every segment: this is the safe window for a swap.
   const lastOb = Math.max(lastX[0], lastX[1], start);
-  gen.x = lastOb + lerp(SWAP_GAP_START, SWAP_GAP_END, d) * v;
-  const fake = gen.n >= 4 && !gen.lastFake && Math.random() < 0.22;   // later on, some clear stretches do not switch
+  gen.x = lastOb + lerp(lerp(SWAP_GAP_START, SWAP_GAP_END, d), SWAP_GAP_LATE, d2) * v;
+  const fake = gen.n >= 2 && !gen.lastFake && Math.random() < 0.2;   // some clear stretches do not switch
   if (!fake) gen.types.reverse();
   gen.lastFake = fake; gen.n++;
 }
@@ -385,7 +432,7 @@ function update(dt) {
   if (countdown > 0) { countdown -= dt; return; }
 
   time += dt;
-  speed = V0 + (V1 - V0) * (1 - Math.exp(-time / TAU));
+  speed = V0 + (V1 - V0) * (1 - Math.exp(-rampT() / TAU));
   dist += speed * dt;
   score = Math.floor(dist);
   if (score >= lastMile + 100) { lastMile += 100; scorePulse = 1; sfx('mile'); }
@@ -904,6 +951,13 @@ function setupTuning() {
       ['Gap between tracks while calm, start', 'SETTLE_GAP_START', 0.1, 2.5, 0.05, () => SETTLE_GAP_START, (v) => SETTLE_GAP_START = v],
       ['Gap between tracks while calm, hardest', 'SETTLE_GAP_END', 0.1, 2.5, 0.05, () => SETTLE_GAP_END, (v) => SETTLE_GAP_END = v],
       ['Seconds to full difficulty', 'RAMP_S', 10, 240, 1, () => RAMP_S, (v) => RAMP_S = v],
+      ['Skill ramp starts at best (m)', 'SKILL_FROM', 0, 3000, 50, () => SKILL_FROM, (v) => SKILL_FROM = v],
+      ['Skill ramp full at best (m)', 'SKILL_TO', 100, 5000, 50, () => SKILL_TO, (v) => SKILL_TO = v],
+      ['Skill ramp, fastest rate (x)', 'SKILL_MAX_RATE', 1, 3, 0.05, () => SKILL_MAX_RATE, (v) => SKILL_MAX_RATE = v],
+      ['Late tightening lasts (s)', 'LATE_RAMP_S', 10, 600, 5, () => LATE_RAMP_S, (v) => LATE_RAMP_S = v],
+      ['Longest same-track gap, very end', 'GAP_MAX_LATE', 0.9, 2, 0.05, () => GAP_MAX_LATE, (v) => GAP_MAX_LATE = v],
+      ['Gap between tracks, very end', 'LANE_GAP_LATE', 0.1, 1, 0.01, () => LANE_GAP_LATE, (v) => LANE_GAP_LATE = v],
+      ['Clear track before switch, very end', 'SWAP_GAP_LATE', 0.6, 3, 0.05, () => SWAP_GAP_LATE, (v) => SWAP_GAP_LATE = v],
     ]],
     ['Moves', [
       ['Hop length (s)', 'JT', 0.3, 1.2, 0.01, () => JT, (v) => JT = v],

@@ -4,6 +4,9 @@ hook: Endless Runner but you need to play as both a cat who can leap and an arma
 order: 4
 tags: [webgame, html, hypercasual]
 
+screenshots:
+- ../../assets/games/cat-and-dillo/shot-1.jpg
+
 links:
   - { label: Play in browser, url: /play/cat_and_dillo/index.html, kind: play }
 unlisted: true
