@@ -25,8 +25,10 @@ interface Props {
   // Link-preview style: 'large' = big banner under the text (default),
   // 'small' = small square logo beside the title and description (used by logs and writeups).
   card?: 'large' | 'small';
+  // true = ask search engines not to index this page (unlisted entries). Also keeps it out of the sitemap.
+  noindex?: boolean;
 }
-const { title, description = site.description, image, zone, card = 'large' } = Astro.props;
+const { title, description = site.description, image, zone, card = 'large', noindex = false } = Astro.props;
 const fullTitle = title ? `${title} — ${site.name}` : site.title;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 // Preview image for shared links. Pages that don't pass their own (game pages do) get
@@ -46,6 +48,7 @@ const ogImage = new URL(shareSrc, Astro.site).toString();
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href={withBase('/favicon.svg')} />
     <link rel="alternate" type="application/rss+xml" title={`${site.name} — logs`} href={withBase('/rss.xml')} />
@@ -71,6 +74,8 @@ const ogImage = new URL(shareSrc, Astro.site).toString();
     
     <dialog class="lightbox" id="lightbox" aria-label="Enlarged image">
   <button type="button" class="lightbox-close" aria-label="Close">✕</button>
+  <button type="button" class="lightbox-nav lightbox-nav--prev" data-lb-step="-1" aria-label="Previous image" hidden>‹</button>
+  <button type="button" class="lightbox-nav lightbox-nav--next" data-lb-step="1" aria-label="Next image" hidden>›</button>
   <img alt="" />
   <p class="lightbox-caption"></p>
 </dialog>
@@ -80,14 +85,60 @@ const ogImage = new URL(shareSrc, Astro.site).toString();
   if (dialog) {
     const big = dialog.querySelector('img')!;
     const caption = dialog.querySelector('.lightbox-caption')!;
+    const navButtons = [...dialog.querySelectorAll<HTMLButtonElement>('[data-lb-step]')];
+    let group: HTMLImageElement[] = [];
+    let index = 0;
 
-    const open = (img: HTMLImageElement) => {
+    // Images that can be flipped through together: same data-gallery (game screenshots),
+    // or all images in the same post. Anything else opens on its own.
+    const groupFor = (img: HTMLImageElement) => {
+      if (img.dataset.gallery)
+        return [...document.querySelectorAll<HTMLImageElement>(`img[data-gallery="${img.dataset.gallery}"]`)];
+      const post = img.closest('.prose');
+      return post ? [...post.querySelectorAll<HTMLImageElement>('img')] : [img];
+    };
+
+    const showImage = (i: number) => {
+      index = (i + group.length) % group.length; // loop around at both ends
+      const img = group[index];
       big.src = img.dataset.full || img.currentSrc || img.src; // data-full = a larger version, if there is one
       big.alt = img.alt;
-      caption.textContent =
-        img.closest('figure')?.querySelector('figcaption')?.textContent ?? img.alt;
+      const text = img.closest('figure')?.querySelector('figcaption')?.textContent ?? img.alt;
+      caption.textContent = group.length > 1 ? `${index + 1} / ${group.length}${text ? ` · ${text}` : ''}` : text;
+    };
+
+    const open = (img: HTMLImageElement) => {
+      group = groupFor(img);
+      navButtons.forEach((b) => (b.hidden = group.length < 2));
+      showImage(group.indexOf(img));
       dialog.showModal();
     };
+
+    navButtons.forEach((b) =>
+      b.addEventListener('click', (e) => {
+        e.stopPropagation(); // don't close the lightbox
+        showImage(index + Number(b.dataset.lbStep));
+      }),
+    );
+    dialog.addEventListener('keydown', (e) => {
+      if (group.length < 2) return;
+      if (e.key === 'ArrowLeft') showImage(index - 1);
+      else if (e.key === 'ArrowRight') showImage(index + 1);
+    });
+    // Swipe left/right on touch screens.
+    let startX = 0;
+    let swiped = false;
+    dialog.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+      swiped = false;
+    }, { passive: true });
+    dialog.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - startX;
+      if (group.length > 1 && Math.abs(dx) > 40) {
+        swiped = true;
+        showImage(index + (dx < 0 ? 1 : -1));
+      }
+    }, { passive: true });
 
     document.querySelectorAll<HTMLImageElement>('.prose img, img[data-full]').forEach((img) => {
       img.tabIndex = 0;
@@ -103,7 +154,13 @@ const ogImage = new URL(shareSrc, Astro.site).toString();
     });
 
     // Clicking anywhere (image, background or ✕) closes it. Escape also works.
-    dialog.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', () => {
+      if (swiped) {
+        swiped = false; // a swipe isn't a click
+        return;
+      }
+      dialog.close();
+    });
   }
 </script>
   </body>

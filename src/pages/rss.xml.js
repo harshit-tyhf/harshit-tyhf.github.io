@@ -9,7 +9,7 @@ import { site } from '../data/site';
 export async function GET(context) {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
-  const posts = (await getCollection('blog', (p) => !p.data.draft)).map((p) => ({
+  const posts = (await getCollection('blog', (p) => !p.data.draft && !p.data.unlisted)).map((p) => ({
     title: p.data.title,
     pubDate: p.data.date,
     description: p.data.excerpt,
@@ -18,7 +18,7 @@ export async function GET(context) {
   }));
 
   // Writeups: their own page if the Markdown has body text, otherwise the first link (e.g. hosted elsewhere).
-  const writeups = (await getCollection('security', (s) => !s.data.draft && s.data.type === 'writeup'))
+  const writeups = (await getCollection('security', (s) => !s.data.draft && !s.data.unlisted && s.data.type === 'writeup'))
     .map((w) => ({
       title: w.data.title,
       pubDate: w.data.date,

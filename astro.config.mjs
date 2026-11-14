@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import { satteri } from '@astrojs/markdown-satteri'; // Astro's built-in Markdown processor
 import sitemap from '@astrojs/sitemap';
+import { readFileSync } from 'node:fs';
 
 /**
  * GitHub Pages setup
@@ -94,12 +95,29 @@ const typedInput = {
   },
 };
 
+/**
+ * Sitemap filter: leaves out pages marked "noindex" (entries with `unlisted: true`).
+ * It checks the finished page in dist/, so there's only one place that decides what's unlisted.
+ * @param {string} page full page URL
+ */
+function notUnlisted(page) {
+  const base = BASE.replace(/\/$/, '');
+  let path = new URL(page).pathname;
+  if (base && path.startsWith(base)) path = path.slice(base.length);
+  const file = new URL(`./dist${path.endsWith('/') ? path + 'index.html' : path}`, import.meta.url);
+  try {
+    return !readFileSync(file, 'utf8').includes('<meta name="robots" content="noindex"');
+  } catch {
+    return true; // can't read it: keep it in the sitemap
+  }
+}
+
 export default defineConfig({
   site: SITE,
   base: BASE,
   trailingSlash: 'ignore',
   // Builds sitemap-index.xml: a list of every page, so search engines can find them all.
-  integrations: [sitemap()],
+  integrations: [sitemap({ filter: notUnlisted })],
   markdown: {
     processor: satteri({ hastPlugins: [externalLinks] }),
     shikiConfig: {

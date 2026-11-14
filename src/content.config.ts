@@ -39,6 +39,7 @@ const games = defineCollection({
       order: z.number().default(100), // lower = shown first
       tags: z.array(z.string()).default([]),
       draft: z.boolean().default(false),
+      unlisted: z.boolean().default(false), // page works by direct link, but is left out of every list
 
       // Media — all optional
       cover: image().optional(), // key art / thumbnail (src/assets/...)
@@ -74,6 +75,7 @@ const security = defineCollection({
     links: z.array(link).default([]),
     collab: collab.optional(),
     draft: z.boolean().default(false),
+    unlisted: z.boolean().default(false), // page works by direct link, but is left out of every list
   }),
 });
 
@@ -87,6 +89,7 @@ const projects = defineCollection({
     links: z.array(link).default([]),
     collab: collab.optional(),
     draft: z.boolean().default(false),
+    unlisted: z.boolean().default(false), // page works by direct link, but is left out of every list
   }),
 });
 
@@ -98,6 +101,7 @@ const blog = defineCollection({
     excerpt: z.string(),
     tag: z.string().default('notes'),
     draft: z.boolean().default(false),
+    unlisted: z.boolean().default(false), // page works by direct link, but is left out of every list
   }),
 });
 

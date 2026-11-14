@@ -19,8 +19,17 @@ export function published<T extends { data: { draft?: boolean } }>(entry: T): bo
   return import.meta.env.DEV || !entry.data.draft;
 }
 
-/** Number posts by date: oldest = 1. Drafts don't get a number. */
-export function logNumbers<T extends { id: string; data: { date: Date; draft?: boolean } }>(posts: T[]) {
-  const sorted = posts.filter((p) => !p.data.draft).sort((a, b) => a.data.date.getTime() - b.data.date.getTime());
+/**
+ * Published AND not unlisted: use this for lists (homepage, /games/, /blog/, /writeups/).
+ * Unlisted entries (`unlisted: true`) still get their own page, reachable by direct link,
+ * but don't appear in any list, the RSS feed or the sitemap, and ask search engines not to index them.
+ */
+export function listed<T extends { data: { draft?: boolean; unlisted?: boolean } }>(entry: T): boolean {
+  return published(entry) && !entry.data.unlisted;
+}
+
+/** Number posts by date: oldest = 1. Drafts and unlisted posts don't get a number. */
+export function logNumbers<T extends { id: string; data: { date: Date; draft?: boolean; unlisted?: boolean } }>(posts: T[]) {
+  const sorted = posts.filter((p) => !p.data.draft && !p.data.unlisted).sort((a, b) => a.data.date.getTime() - b.data.date.getTime());
   return new Map(sorted.map((p, i) => [p.id, String(i + 1).padStart(3, '0')]));
 }

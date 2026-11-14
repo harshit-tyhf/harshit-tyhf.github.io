@@ -4,9 +4,9 @@ import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import TagFilter from '../../components/TagFilter.astro';
-import { formatDate, isExternal, published, withBase } from '../../lib/utils';
+import { formatDate, isExternal, listed, withBase } from '../../lib/utils';
 
-const writeups = (await getCollection('security', published))
+const writeups = (await getCollection('security', listed))
   .filter((s) => s.data.type === 'writeup')
   .sort((a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0));
 

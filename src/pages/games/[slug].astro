@@ -37,11 +37,19 @@ const fullSize = async (image: ImageMetadata) =>
 
 // Build the media list from whatever exists. Missing pieces are simply skipped.
 type Media =
+  | { kind: 'game'; label: string; src: string; bg?: string }
   | { kind: 'video'; label: string; src: string }
   | { kind: 'youtube'; label: string; id: string }
   | { kind: 'image'; label: string; image: ImageMetadata; full: string };
 
 const media: Media[] = [];
+// Playable game: a "play" link makes the first slide a click-to-play frame.
+// Its background is a darkened copy of the cover (or first screenshot); without one it uses the theme colours.
+const playUrl = d.links.find((l) => l.kind === 'play' && l.url)?.url;
+if (playUrl) {
+  const bg = shareSource ? (await getImage({ src: shareSource, width: Math.min(1200, shareSource.width), format: 'webp' })).src : undefined;
+  media.push({ kind: 'game', label: 'Play', src: withBase(playUrl), bg });
+}
 if (d.video) media.push({ kind: 'video', label: 'Gameplay', src: withBase(d.video) });
 else if (d.youtube) {
   // Accept either the bare video ID or a full YouTube link (youtu.be/…, watch?v=…, /shorts/…, /embed/…).
@@ -64,7 +72,7 @@ const specs = Object.entries(d.specs).filter(([, v]) => v);
 if (d.collab) specs.unshift(['collab', `${d.collab.team} (${d.collab.role})`]);
 specLabels.collab = 'Made with';
 ---
-<Base title={d.title} description={d.hook} image={shareImage} zone="arcade">
+<Base title={d.title} description={d.hook} image={shareImage} zone="arcade" noindex={d.unlisted}>
   <div class="container page">
     <a class="back" href={withBase('/#games')}><Icon name="back" />Back to operations</a>
 
@@ -76,7 +84,7 @@ specLabels.collab = 'Made with';
 
     <div class="layout">
       <section class="media" aria-label="Gameplay and screenshots">
-        <div class="stage">
+        <div class="stage" data-stage>
           {media.length === 0 && (
             d.cover
               ? <Image src={d.cover} alt={`${d.title} key art`} widths={[700, 1200]} sizes="(max-width: 900px) 100vw, 760px" data-full={coverFull} />
@@ -84,6 +92,17 @@ specLabels.collab = 'Made with';
           )}
           {media.map((m, i) => (
             <div class="slide" id={`slide-${i}`} data-slide={i} hidden={i !== 0}>
+              {m.kind === 'game' && (
+                <div class="game" data-game data-src={m.src}>
+                  <button type="button" class:list={['game-start', m.bg && 'has-bg']} data-game-start
+                          style={m.bg ? `--game-bg: url('${m.bg}')` : undefined}>
+                    <span class="game-icon"><Icon name="play" size={28} /></span>
+                    <span class="game-label">Play {d.title}</span>
+                    <span class="game-sub">Runs right here in your browser</span>
+                  </button>
+                  <button type="button" class="game-full" data-game-full hidden>⛶ Fullscreen</button>
+                </div>
+              )}
               {m.kind === 'video' && (
                 <video src={m.src} controls preload="metadata" playsinline poster={poster}>
                   <a href={m.src}>Download the gameplay video</a>
@@ -100,10 +119,16 @@ specLabels.collab = 'Made with';
               {m.kind === 'image' && (
                 <Image src={m.image} alt={`${d.title}: ${m.label.toLowerCase()}`}
                        widths={[700, 1200, 1600]} sizes="(max-width: 900px) 100vw, 760px" loading={i === 0 ? 'eager' : 'lazy'}
-                       data-full={m.full} />
+                       data-full={m.full} data-gallery="shots" />
               )}
             </div>
           ))}
+          {media.length > 1 && (
+            <>
+              <button type="button" class="nav nav--prev" data-step="-1" aria-label="Previous screenshot">‹</button>
+              <button type="button" class="nav nav--next" data-step="1" aria-label="Next screenshot">›</button>
+            </>
+          )}
         </div>
 
         {media.length > 1 && (
@@ -173,19 +198,77 @@ specLabels.collab = 'Made with';
 </Base>
 
 <script>
-  document.querySelectorAll<HTMLButtonElement>('[data-thumb]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const index = btn.dataset.thumb;
-      document.querySelectorAll<HTMLElement>('[data-slide]').forEach((slide) => {
-        const active = slide.dataset.slide === index;
-        slide.hidden = !active;
-        if (!active) slide.querySelector('video')?.pause();
-      });
-      document.querySelectorAll('[data-thumb]').forEach((b) =>
-        b.setAttribute('aria-pressed', String(b === btn)),
-      );
+  // Gallery: thumbnails, ‹ › arrows, ← → keys and swipe all switch the visible slide.
+  const slides = [...document.querySelectorAll<HTMLElement>('[data-slide]')];
+  const thumbs = [...document.querySelectorAll<HTMLButtonElement>('[data-thumb]')];
+  const stage = document.querySelector<HTMLElement>('[data-stage]');
+  let current = 0;
+
+  // Playable game frame: the game only loads when clicked. On phones and tablets it opens on its own instead.
+  const game = document.querySelector<HTMLElement>('[data-game]');
+  const gameStart = game?.querySelector<HTMLButtonElement>('[data-game-start]');
+  const gameFull = game?.querySelector<HTMLButtonElement>('[data-game-full]');
+  const stopGame = () => {
+    const frame = game?.querySelector('iframe');
+    if (frame && gameStart && gameFull) { frame.replaceWith(gameStart); gameFull.hidden = true; }
+  };
+  if (game && gameStart && gameFull) {
+    gameStart.addEventListener('click', () => {
+      // Only devices with no mouse or trackpad at all (phones, tablets). Narrow windows and
+      // touchscreen laptops still play in the frame. Checked at click time, not page load.
+      const phone = matchMedia('(hover: none) and (pointer: coarse)').matches;
+      if (phone) { location.href = game.dataset.src!; return; }
+      const frame = document.createElement('iframe');
+      // "?site" tells the game it's in my site's frame, not on YouTube (see the game's ON_MY_SITE).
+      const src = game.dataset.src!;
+      frame.src = src + (src.includes('?') ? '&' : '?') + 'site';
+      frame.title = gameStart.querySelector('.game-label')?.textContent ?? 'Game';
+      frame.allow = 'fullscreen; autoplay';
+      gameStart.replaceWith(frame);
+      gameFull.hidden = false;
+      frame.focus();
     });
-  });
+    gameFull.addEventListener('click', () => game.requestFullscreen?.());
+  }
+
+  const show = (index: number) => {
+    if (!slides.length) return;
+    current = (index + slides.length) % slides.length; // loop around at both ends
+    slides.forEach((slide, i) => {
+      slide.hidden = i !== current;
+      if (i !== current) slide.querySelector('video')?.pause();
+      if (i !== current && slide.contains(game)) stopGame(); // switching away closes the game (and its sound)
+    });
+    thumbs.forEach((b, i) => b.setAttribute('aria-pressed', String(i === current)));
+  };
+
+  thumbs.forEach((btn, i) => btn.addEventListener('click', () => show(i)));
+  document.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((btn) =>
+    btn.addEventListener('click', () => show(current + Number(btn.dataset.step))),
+  );
+
+  if (stage && slides.length > 1) {
+    // Arrow keys while the viewer or its thumbnails have focus (not while the lightbox is open).
+    stage.closest('.media')?.addEventListener('keydown', (e) => {
+      const key = (e as KeyboardEvent).key;
+      if (document.querySelector('.lightbox[open]')) return;
+      if (key === 'ArrowLeft') show(current - 1);
+      else if (key === 'ArrowRight') show(current + 1);
+    });
+
+    // Swipe left/right on touch screens.
+    let startX = 0;
+    let startY = 0;
+    stage.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+    stage.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) show(current + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+  }
 </script>
 
 <style>
@@ -234,6 +317,7 @@ specLabels.collab = 'Made with';
     gap: 0.8rem;
   }
   .stage {
+    position: relative;
     aspect-ratio: 16 / 9;
     border: 1px solid var(--line);
     background: repeating-linear-gradient(135deg, var(--surface) 0 14px, var(--bg) 14px 28px);
@@ -253,6 +337,114 @@ specLabels.collab = 'Made with';
   }
   .stage > :global(img) {
     object-fit: cover;
+  }
+  /* ‹ › arrows on the main viewer */
+  .nav {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 56px;
+    transform: translateY(-50%);
+    border: 1px solid var(--line-strong);
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+    color: var(--text-strong);
+    font: 400 2rem / 1 var(--font-body);
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity 0.15s, border-color 0.15s;
+  }
+  .nav--prev {
+    left: 0.6rem;
+  }
+  .nav--next {
+    right: 0.6rem;
+  }
+  .stage:hover .nav,
+  .nav:focus-visible {
+    opacity: 1;
+  }
+  .nav:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  /* Playable game frame */
+  .game {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+  }
+  .game-start {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 1rem;
+    border: 0;
+    color: var(--text-strong);
+    font-family: var(--font-body);
+    cursor: pointer;
+    /* No cover image: theme colours with a soft accent glow */
+    background:
+      radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
+      linear-gradient(var(--surface), var(--bg));
+  }
+  .game-start.has-bg {
+    /* Cover image, darkened so the text stays readable */
+    background:
+      linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.75)),
+      var(--game-bg) center / cover no-repeat;
+  }
+  .game-icon {
+    display: grid;
+    place-items: center;
+    width: 76px;
+    height: 76px;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    background: color-mix(in srgb, var(--bg) 60%, transparent);
+    transition: background-color 0.15s, color 0.15s;
+  }
+  .game-start:hover .game-icon,
+  .game-start:focus-visible .game-icon {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .game-label {
+    font: 700 var(--step-2) var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+  .game-sub {
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+  .game-start.has-bg .game-sub {
+    color: rgba(255, 255, 255, 0.8);
+  }
+  .game-full {
+    position: absolute;
+    right: 0.6rem;
+    bottom: 0.6rem;
+    z-index: 2;
+    padding: 0.35rem 0.7rem;
+    border: 1px solid var(--line-strong);
+    background: color-mix(in srgb, var(--bg) 80%, transparent);
+    color: var(--text-strong);
+    font-size: var(--step--1);
+    cursor: pointer;
+  }
+  .game-full:hover {
+    border-color: var(--accent);
+    color: var(--accent);
   }
   .empty {
     display: grid;

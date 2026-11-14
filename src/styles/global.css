@@ -317,6 +317,33 @@ img[data-full] {
   font-size: 1.1rem;
   cursor: pointer;
 }
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 56px;
+  transform: translateY(-50%);
+  border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  color: var(--text-strong);
+  font: 400 2rem / 1 var(--font-body);
+  cursor: pointer;
+}
+.lightbox-nav[hidden] {
+  display: none;
+}
+.lightbox-nav:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.lightbox-nav--prev {
+  left: 0.5rem;
+}
+.lightbox-nav--next {
+  right: 0.5rem;
+}
 html:has(.lightbox[open]) {
   overflow: hidden; /* stop the page scrolling behind it */
 }

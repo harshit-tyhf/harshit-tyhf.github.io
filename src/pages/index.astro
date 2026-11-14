@@ -8,23 +8,23 @@ import SectionHeading from '../components/SectionHeading.astro';
 import GameCard from '../components/GameCard.astro';
 import CollabCard from '../components/CollabCard.astro';
 import { site } from '../data/site';
-import { formatDate, isExternal, published, withBase } from '../lib/utils';
+import { formatDate, isExternal, listed, withBase } from '../lib/utils';
 
 const byOrder = (a: { data: { order: number } }, b: { data: { order: number } }) => a.data.order - b.data.order;
 const byDateDesc = (a: { data: { date?: Date } }, b: { data: { date?: Date } }) =>
   (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0);
 
-const games = (await getCollection('games', published)).sort(byOrder);
+const games = (await getCollection('games', listed)).sort(byOrder);
 const soloGames = games.filter((g) => !g.data.collab);
 const collabGames = games.filter((g) => g.data.collab);
 /** How many games the homepage shows (lowest `order` first). The rest are on /games/. */
-const GAMES_ON_HOME = 4;
-const COOP_ON_HOME = 2;
+const GAMES_ON_HOME = 3;
+const COOP_ON_HOME = 3;
 const homeSolo = soloGames.slice(0, GAMES_ON_HOME);
 const homeCoop = collabGames.slice(0, COOP_ON_HOME);
 const hiddenGames = games.length - homeSolo.length - homeCoop.length;
 
-const security = (await getCollection('security', published)).sort(byDateDesc);
+const security = (await getCollection('security', listed)).sort(byDateDesc);
 const writeups = security.filter((s) => s.data.type === 'writeup' && !s.data.collab);
 /** How many writeups the homepage shows. The rest are on /writeups/. */
 const WRITEUPS_ON_HOME = 5;
@@ -34,11 +34,11 @@ const allWriteupsCount = security.filter((s) => s.data.type === 'writeup').lengt
 const tools = security.filter((s) => s.data.type === 'tool' && !s.data.collab);
 const collabSecurity = security.filter((s) => s.data.collab);
 
-const projects = (await getCollection('projects', published)).sort(byOrder);
+const projects = (await getCollection('projects', listed)).sort(byOrder);
 const soloProjects = projects.filter((p) => !p.data.collab);
 const collabProjects = projects.filter((p) => p.data.collab);
 
-const posts = (await getCollection('blog', published)).sort(byDateDesc).slice(0, 3);
+const posts = (await getCollection('blog', listed)).sort(byDateDesc).slice(0, 3);
 
 /** Ops board: one equal tile per area at the top of Operations, so neither is buried by scroll order. */
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;

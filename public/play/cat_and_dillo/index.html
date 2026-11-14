@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cat &amp; Dillo</title>
+<!-- The YouTube Playables SDK has to load before any game code. Outside YouTube it is a no-op. -->
+<script src="https://www.youtube.com/game_api/v1"></script>
+<style>
+  :root {
+    --ink: #17183F;
+    --dusk: #2B2D6E;
+    --coral: #FF6B4A;
+    --mint: #7FE3C4;
+    --sand: #F2C66D;
+    --cream: #FFF3D6;
+    --b: 56px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--ink); overscroll-behavior: none;
+  }
+  body {
+    font-family: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--cream);
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+  }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #safe {
+    position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden;
+    padding-left: env(safe-area-inset-left, 0px); padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .swap {
+    position: fixed; top: var(--by, 50%);
+    width: var(--b); height: var(--b); margin-top: calc(var(--b) / -2);
+    border-radius: 50%; border: 2px solid var(--cream);
+    background: rgba(23, 24, 63, .78); color: var(--cream);
+    display: grid; place-items: center; padding: 0;
+    touch-action: none; cursor: pointer;
+  }
+  .swap svg { width: 52%; height: 52%; display: block; }
+  .swap.l { left: calc(env(safe-area-inset-left, 0px) + var(--bx, 10px)); }
+  .swap.r { right: calc(env(safe-area-inset-right, 0px) + var(--bx, 10px)); }
+  .swap:active { background: var(--cream); color: var(--ink); }
+  .swap.nudge { background: var(--sand); color: var(--ink); border-color: var(--sand); animation: nudge .5s ease-in-out infinite alternate; }
+  @keyframes nudge { to { transform: scale(1.14); } }
+
+  .ov {
+    position: fixed; inset: 0; overflow-y: auto;
+    display: flex; flex-direction: column; align-items: center; justify-content: safe center;
+    gap: clamp(8px, 2.4vmin, 18px);
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+    text-align: center;
+    background: rgba(23, 24, 63, .84);
+  }
+  .ov[hidden], .swap[hidden], .pausebtn[hidden] { display: none; }
+  .pausebtn {
+    position: fixed; z-index: 2;
+    top: calc(env(safe-area-inset-top, 0px) + 10px); left: calc(env(safe-area-inset-left, 0px) + 10px);
+    width: 44px; height: 44px; padding: 0; border-radius: 50%;
+    border: 2px solid var(--cream); background: rgba(23, 24, 63, .78); color: var(--cream);
+    display: grid; place-items: center; cursor: pointer; touch-action: none;
+  }
+  .pausebtn svg { width: 40%; height: 40%; display: block; }
+  .pausebtn:active { background: var(--cream); color: var(--ink); }
+  .ov h2 { margin: 0; font-weight: 800; line-height: 1; font-size: clamp(28px, 9vmin, 56px); }
+  .ov .btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .ov button.ghost { background: transparent; color: var(--cream); box-shadow: inset 0 0 0 2px var(--cream); }
+  .ov h1 {
+    margin: 0; font-weight: 800; line-height: 1; letter-spacing: -.02em;
+    font-size: clamp(30px, 11vmin, 76px);
+  }
+  .ov h1 .cat { color: var(--coral); }
+  .ov .tagline { margin-top: -0.2em; font-weight: 800; color: var(--sand); font-size: clamp(16px, 4.6vmin, 26px); }
+  .ov h1 .dil { color: var(--mint); }
+  .ov p { margin: 0; max-width: 34em; line-height: 1.4; font-size: clamp(14px, 3.6vmin, 18px); }
+  .ov .keys { display: none; opacity: .75; }
+  @media (hover: hover) and (pointer: fine) { .ov .keys { display: block; } }
+  #cause { font-weight: 800; font-size: clamp(18px, 5vmin, 28px); line-height: 1.2; }
+  #final { font-weight: 800; font-size: clamp(34px, 12vmin, 72px); line-height: 1; color: var(--sand); font-variant-numeric: tabular-nums; }
+  .ov button {
+    font: inherit; font-weight: 800; font-size: clamp(16px, 4.2vmin, 20px);
+    min-height: 48px; padding: .7em 1.7em; margin-top: 4px;
+    border: 0; border-radius: 999px;
+    background: var(--sand); color: var(--ink); cursor: pointer;
+  }
+  .ov button:disabled { opacity: .55; cursor: default; }
+  button:focus-visible { outline: 3px solid var(--cream); outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { .swap.nudge { animation: none; } }
+
+  /* Tuning panel: only appears outside YouTube, when the address ends in #tune */
+  #tune {
+    position: fixed; top: 8px; right: 8px; z-index: 10;
+    width: min(280px, calc(100% - 16px)); max-height: calc(100% - 16px); overflow-y: auto;
+    padding: 10px 12px 12px; border-radius: 12px;
+    background: rgba(23, 24, 63, .94); border: 1px solid rgba(255, 243, 214, .3);
+    font-size: 13px; line-height: 1.3;
+  }
+  #tune[hidden] { display: none; }
+  #tune h2 { margin: 10px 0 4px; font-size: 13px; color: var(--sand); }
+  #tune h2:first-of-type { margin-top: 2px; }
+  #tune .row { display: grid; grid-template-columns: 1fr 46px; gap: 0 8px; align-items: center; margin-bottom: 6px; }
+  #tune .row span { font-variant-numeric: tabular-nums; text-align: right; }
+  #tune input[type=range] { grid-column: 1 / -1; width: 100%; margin: 2px 0 0; accent-color: var(--sand); }
+  #tune .bar { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  #tune button {
+    font: inherit; font-weight: 700; padding: 6px 10px; border-radius: 8px; border: 0;
+    background: var(--cream); color: var(--ink); cursor: pointer;
+  }
+  #tune button.on { background: var(--sand); }
+  #tune textarea {
+    width: 100%; height: 120px; margin-top: 8px; resize: vertical;
+    font: 11px/1.4 ui-monospace, Menlo, Consolas, monospace;
+    background: var(--ink); color: var(--cream); border: 1px solid rgba(255,243,214,.3); border-radius: 6px;
+  }
+  #tune-open {
+    position: fixed; top: 8px; right: 8px; z-index: 10;
+    font: inherit; font-weight: 700; padding: 6px 12px; border-radius: 8px; border: 0;
+    background: var(--cream); color: var(--ink); cursor: pointer;
+  }
+  #tune-open[hidden] { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="safe"></div>
+
+<button class="swap l" id="swapL" type="button" tabindex="-1" aria-label="Swap the runners" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 20V5M3.5 9.5 8 5l4.5 4.5M16 4v15M11.5 14.5 16 19l4.5-4.5"/></svg>
+</button>
+<button class="swap r" id="swapR" type="button" tabindex="-1" aria-label="Swap the runners" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 20V5M3.5 9.5 8 5l4.5 4.5M16 4v15M11.5 14.5 16 19l4.5-4.5"/></svg>
+</button>
+
+<button class="pausebtn" id="pauseBtn" type="button" aria-label="Pause" hidden>
+  <svg viewBox="0 0 10 12" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="3.4" height="12" rx="1"/><rect x="6.6" y="0" width="3.4" height="12" rx="1"/></svg>
+</button>
+
+<div class="ov" id="pauseMenu" hidden>
+  <h2>Paused</h2>
+  <p id="pauseScore"></p>
+  <div class="btns">
+    <button id="resumeBtn" type="button">Resume</button>
+    <button id="restartBtn" class="ghost" type="button">Restart run</button>
+  </div>
+</div>
+
+<div class="ov" id="menu">
+  <h1><span class="cat">Cat</span> &amp; <span class="dil">Dillo</span></h1>
+  <p class="tagline">Hop, roll, swap.</p>
+  <p>Tap a track to move its runner. The cat hops over rocks. The armadillo rolls under spike blocks. When the obstacles switch tracks, swap the runners.</p>
+  <p class="keys">Keys: W for the top track, S for the bottom, Space to swap, P to pause.</p>
+  <button id="play" type="button" disabled>Loading…</button>
+</div>
+
+<div id="tune" hidden></div>
+<button id="tune-open" type="button" hidden>Tune</button>
+
+<div class="ov" id="over" hidden>
+  <p id="cause"></p>
+  <p id="tip"></p>
+  <p id="final"></p>
+  <p id="bestline"></p>
+  <button id="again" type="button">Run again</button>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- YouTube Playables SDK (no-op when absent) ---------- */
+const YT = (typeof ytgame !== 'undefined' && ytgame) ? ytgame : null;
+// The SDK claims "in YouTube" whenever the game runs inside a frame, including the play frame
+// on my website. My site's frame loads the game as index.html?site, so that marker means "not
+// YouTube". YouTube (and its test suite, even on localhost) never adds it, so it can't misfire there.
+const ON_MY_SITE = new URLSearchParams(location.search).has('site');
+const IN_YT = !!(YT && YT.IN_PLAYABLES_ENV) && !ON_MY_SITE;
+const sdk = (fn) => { try { return fn(); } catch (e) { return undefined; } };
+
+/* =====================================================================
+   TUNING: the numbers to change when the game feels off.
+   Distances are in "units"; one unit is roughly one runner tall.
+   ===================================================================== */
+let V0 = 6.2;                // starting speed, units per second
+let V1 = 11.6;               // top speed the game creeps toward
+let TAU = 58;                // how quickly speed rises (bigger = slower ramp)
+
+let LOOK_AHEAD_S = 2.2;      // seconds of track you can see ahead of the runners
+let LANE_U = 5.2;            // closest zoom: how many units tall each track is at most
+let MIN_UNIT_FRAC = 1 / 24;  // furthest zoom on narrow screens, as a share of the screen's short side
+
+let SWAP_GAP_START = 2.0;    // seconds of empty track before a switch, at the start
+let SWAP_GAP_END = 1.4;      // seconds of empty track before a switch, at full difficulty
+let LANE_GAP_START = 0.75;   // least time between obstacles on different tracks, at the start
+let LANE_GAP_END = 0.5;      // least time between obstacles on different tracks, at full difficulty
+let SETTLE_S_START = 2.0;    // after a switch, how long obstacles stay extra spaced out, at the start
+let SETTLE_S_END = 1.2;      // the same at full difficulty (it never gets shorter than this)
+let SETTLE_GAP_START = 1.0;  // least time between obstacles on different tracks while settling, at the start
+let SETTLE_GAP_END = 0.75;   // the same at full difficulty (it never gets shorter than this)
+let RAMP_S = 80;             // seconds until the obstacle pattern reaches full difficulty
+
+let JT = 0.62, JH = 1.75;    // hop: how long it lasts, how high it goes
+let RT = 0.62;               // roll: how long it lasts
+let ST = 0.28;               // swap: how long the crossing takes
+let RECOVER_S = 0.15;        // after a hop or roll, a short moment upright before the next one
+
+let BTN_SIZE = 0.15;         // swap button size, as a share of the screen's short side
+let BTN_Y = 50;              // swap button height on screen, in percent from the top
+let BTN_X = 10;              // swap button distance from the screen edge, in pixels
+let SHOW_LABELS = true;      // small control reminders at the top of each track
+/* ===================================================================== */
+
+const HALF = 0.36;           // runner half width for collisions
+const OY = 0.62;             // underside of a spike block above the ground
+
+const C = {
+  ink: '#17183F', coral: '#FF6B4A', coralD: '#C2412A', mint: '#7FE3C4', mintD: '#3FA98C',
+  sand: '#F2C66D', cream: '#FFF3D6'
+};
+const FONT = 'ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('c'), ctx = canvas.getContext('2d', { alpha: false });
+const menu = $('menu'), over = $('over'), playBtn = $('play'), againBtn = $('again');
+const swapBtns = [$('swapL'), $('swapR')];
+const pauseBtn = $('pauseBtn'), pauseMenu = $('pauseMenu'), resumeBtn = $('resumeBtn');
+const RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const rnd = (a, b) => a + Math.random() * (b - a);
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* ---------- Layout ---------- */
+let W = 0, H = 0, DPR = 1, s = 30, btn = 56, safeL = 0, safeT = 0, axPx = 80;
+const gy = [0, 0];
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  if (!w || !h) return;                       // YouTube can report 0 briefly; keep the last good size
+  W = w; H = h;
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  canvas.width = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  btn = clamp(Math.min(W, H) * BTN_SIZE, 44, 120);
+  const rs = document.documentElement.style;
+  rs.setProperty('--b', btn + 'px'); rs.setProperty('--by', BTN_Y + '%'); rs.setProperty('--bx', BTN_X + 'px');
+  const sc = getComputedStyle($('safe'));
+  safeL = parseFloat(sc.paddingLeft) || 0; safeT = parseFloat(sc.paddingTop) || 0;
+  layout();
+}
+
+function layout() {
+  // Zoom so the track ahead always shows LOOK_AHEAD_S seconds at the current speed.
+  // The camera pulls back as the game speeds up, so warning time stays the same.
+  const ahead = LOOK_AHEAD_S * speed + 1.2;
+  const near = H / (2 * LANE_U);
+  const far = Math.min(near, clamp(Math.min(W, H) * MIN_UNIT_FRAC, 13, 40));
+  for (let k = 0; k < 2; k++) {
+    axPx = Math.max(0.12 * W, safeL + BTN_X + btn + 0.5 * s);
+    s = clamp((W - axPx) / ahead, far, near);
+  }
+  axPx = Math.max(0.12 * W, safeL + BTN_X + btn + 0.5 * s);
+  const laneH = H / 2;
+  for (let i = 0; i < 2; i++) gy[i] = i * laneH + Math.min(laneH - s, laneH * 0.5 + 1.7 * s);
+}
+
+/* ---------- Game state ---------- */
+let state = 'boot';                 // boot, menu, run, dead, over
+let time = 0, dist = 0, speed = V0, score = 0, best = 0;
+let laneAnimal = ['cat', 'dil'];
+const A = { cat: { act: -1, rec: 0 }, dil: { act: -1, rec: 0 } };
+let swapP = -1, swapMid = false, swapBuf = 0;
+const laneBuf = [0, 0];
+let obstacles = [], particles = [];
+const gen = { x: 0, types: ['g', 'o'], n: 0, lastFake: false };
+let deadT = 0, hit = null, overT = 0, scorePulse = 0, lastMile = 0;
+let paused = false, countdown = 0, usingKeys = false, mismatch = false;
+const COUNT_STEP = 0.5;    // each number of the resume countdown, in seconds
+const seen = { hop: false, roll: false, swaps: 0 };
+
+function reset() {
+  time = 0; dist = 0; speed = V0; score = 0; lastMile = 0;
+  laneAnimal = ['cat', 'dil'];
+  A.cat.act = -1; A.dil.act = -1; A.cat.rec = 0; A.dil.rec = 0;
+  swapP = -1; swapMid = false; swapBuf = 0; laneBuf[0] = laneBuf[1] = 0;
+  obstacles = []; particles = [];
+  gen.x = 0; gen.types = ['g', 'o']; gen.n = 0; gen.lastFake = false;
+  deadT = 0; hit = null; paused = false; countdown = 0; mismatch = false;
+}
+
+const typeFor = (name) => name === 'cat' ? 'g' : 'o';
+const jumpY = (t) => { const k = t / JT; return 4 * JH * k * (1 - k); };
+
+/* ---------- Obstacle generation ---------- */
+function addOb(lane, x) {
+  const type = gen.types[lane];
+  obstacles.push(type === 'g'
+    ? { lane, type, x, w: rnd(0.6, 0.85), h: rnd(0.55, 0.7), k: Math.random() < 0.5 }
+    : { lane, type, x, w: rnd(0.7, 1.0), k: false });
+}
+
+function genSegment() {
+  const v = speed;
+  if (gen.n === 0) {
+    // Opening stretch: one obstacle at a time, alternating tracks, then the first switch.
+    [2.4, 4.0, 5.4, 6.7, 7.9, 9.0].forEach((t, i) => addOb(i % 2, V0 * t * 1.03));
+    gen.x = V0 * (9.0 + SWAP_GAP_START + 0.4) * 1.03;   // the first switch gets extra room
+    gen.types.reverse(); gen.n = 1;
+    return;
+  }
+  const d = Math.min(1, time / RAMP_S);
+  const dur = lerp(rnd(4, 6.5), rnd(2.6, 4.6), d);
+  const floor = Math.max(JT, RT) + RECOVER_S + 0.1;   // always time to finish a move and recover
+  const gmin = Math.max(lerp(1.0, 0.72, d), floor), gmax = Math.max(lerp(1.9, 1.25, d), floor + 0.3);
+  const sep = lerp(LANE_GAP_START, LANE_GAP_END, d) * v;   // never crowd both tracks at once
+  const start = gen.x, end = start + dur * v;
+  const settleEnd = start + lerp(SETTLE_S_START, SETTLE_S_END, d) * v;   // calmer stretch right after a switch
+  const settleGap = lerp(SETTLE_GAP_START, SETTLE_GAP_END, d) * v;
+  const sepAt = (x) => x < settleEnd ? Math.max(sep, settleGap) : sep;
+  const nx = [start + rnd(0, 0.5) * v, start + rnd(0.3, 0.9) * v];
+  if (Math.random() < 0.5) nx.reverse();
+  const lastX = [-1e9, -1e9];
+  for (;;) {
+    const l = nx[0] <= nx[1] ? 0 : 1, o = 1 - l;
+    let x = nx[l];
+    if (Math.abs(x - lastX[o]) < sepAt(x)) x = lastX[o] + sepAt(x);
+    if (x > end) { nx[l] = Infinity; if (nx[o] === Infinity) break; continue; }
+    addOb(l, x); lastX[l] = x;
+    nx[l] = x + rnd(gmin, gmax) * v;
+  }
+  // Clear stretch after every segment: this is the safe window for a swap.
+  const lastOb = Math.max(lastX[0], lastX[1], start);
+  gen.x = lastOb + lerp(SWAP_GAP_START, SWAP_GAP_END, d) * v;
+  const fake = gen.n >= 4 && !gen.lastFake && Math.random() < 0.22;   // later on, some clear stretches do not switch
+  if (!fake) gen.types.reverse();
+  gen.lastFake = fake; gen.n++;
+}
+
+/* ---------- Actions ---------- */
+function tryAct(lane) {
+  const name = laneAnimal[lane], a = A[name];
+  if (swapP >= 0 || a.act >= 0 || a.rec > 0) return false;
+  a.act = 0;
+  if (name === 'cat') { seen.hop = true; sfx('hop'); } else { seen.roll = true; sfx('roll'); }
+  return true;
+}
+function trySwap() {
+  if (swapP >= 0 || A.cat.act >= 0 || A.dil.act >= 0) return false;
+  swapP = 0; swapMid = false; sfx('swap');
+  return true;
+}
+function pressLane(lane) {
+  if (state !== 'run' || paused || countdown > 0) return;
+  if (!tryAct(lane)) laneBuf[lane] = 0.14;
+}
+function pressSwap() {
+  if (state !== 'run' || paused || countdown > 0) return;
+  if (!trySwap()) swapBuf = 0.4;
+}
+
+/* ---------- Update ---------- */
+function puff(lane, n, color, spread) {
+  for (let i = 0; i < n; i++) particles.push({
+    x: dist + rnd(-0.3, 0.3), lane, y: rnd(0, 0.15),
+    vx: rnd(-spread, spread) - 1, vy: rnd(0.5, spread + 1),
+    life: 0, max: rnd(0.25, 0.5), r: rnd(0.05, 0.11), color
+  });
+}
+
+function update(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.life += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 9 * dt;
+    if (p.life >= p.max) particles.splice(i, 1);
+  }
+  scorePulse = Math.max(0, scorePulse - dt * 3);
+
+  if (state === 'menu' || state === 'boot') { dist += V0 * 0.6 * dt; return; }
+  if (state === 'dead') { deadT += dt; if (deadT > 0.75) endRun(); return; }
+  if (state === 'over') { overT += dt; return; }
+  if (paused) return;
+  if (countdown > 0) { countdown -= dt; return; }
+
+  time += dt;
+  speed = V0 + (V1 - V0) * (1 - Math.exp(-time / TAU));
+  dist += speed * dt;
+  score = Math.floor(dist);
+  if (score >= lastMile + 100) { lastMile += 100; scorePulse = 1; sfx('mile'); }
+
+  A.cat.rec = Math.max(0, A.cat.rec - dt); A.dil.rec = Math.max(0, A.dil.rec - dt);
+  if (A.cat.act >= 0) { A.cat.act += dt; if (A.cat.act >= JT) { A.cat.act = -1; A.cat.rec = RECOVER_S; puff(laneAnimal.indexOf('cat'), 4, C.sand, 1.5); } }
+  if (A.dil.act >= 0) { A.dil.act += dt; if (A.dil.act >= RT) { A.dil.act = -1; A.dil.rec = RECOVER_S; } }
+  if (swapP >= 0) {
+    swapP += dt / ST;
+    if (!swapMid && swapP >= 0.5) { laneAnimal.reverse(); swapMid = true; }
+    if (swapP >= 1) { swapP = -1; seen.swaps++; }
+  }
+  if (swapBuf > 0) { swapBuf -= dt; if (trySwap()) swapBuf = 0; }
+  for (let l = 0; l < 2; l++) if (laneBuf[l] > 0) { laneBuf[l] -= dt; if (tryAct(l)) laneBuf[l] = 0; }
+
+  while (gen.x < dist + W / s + 6) genSegment();
+  while (obstacles.length && obstacles[0].x < dist - axPx / s - 3) obstacles.shift();
+
+  // Collisions, and whether the next obstacle on a track suits the runner on it.
+  const next = [null, null];
+  for (const o of obstacles) {
+    if (!next[o.lane] && o.x > dist - 0.3) next[o.lane] = o;
+    if (Math.abs(o.x - dist) > o.w / 2 + HALF - 0.08) continue;
+    const name = laneAnimal[o.lane], a = A[name];
+    let lo = 0, hi = 0.85;
+    if (swapP < 0 && a.act >= 0) {
+      if (name === 'cat') { lo = jumpY(a.act); hi = lo + 0.7; } else hi = 0.5;
+    }
+    if (o.type === 'g' ? lo < o.h - 0.05 : hi > OY + 0.05) { die(name, o); return; }
+  }
+  // Time to swap: a visible obstacle no longer suits its runner, and no track still has one that does.
+  const seenNext = next.map((o) => (o && (o.x - dist) * s + axPx < W) ? o : null);
+  const wrong = (o, l) => o.type !== typeFor(laneAnimal[l]);
+  mismatch = swapP < 0 && seenNext.some((o, l) => o && wrong(o, l)) && !seenNext.some((o, l) => o && !wrong(o, l));
+}
+
+function die(name, o) {
+  state = 'dead'; deadT = 0; hit = { name, type: o.type, lane: o.lane };
+  A.cat.act = -1; A.dil.act = -1; swapP = -1;
+  for (let i = 0; i < 14; i++) particles.push({
+    x: dist + rnd(-0.2, 0.4), lane: o.lane, y: rnd(0.2, 0.8),
+    vx: rnd(-4, 3), vy: rnd(1, 6), life: 0, max: rnd(0.4, 0.75), r: rnd(0.06, 0.13),
+    color: name === 'cat' ? C.coral : C.mint
+  });
+  sfx('hit');
+  swapBtns.forEach(b => { b.hidden = true; b.classList.remove('nudge'); });
+  pauseBtn.hidden = true;
+}
+
+function endRun() {
+  state = 'over'; overT = 0;
+  const isBest = score > best;
+  if (isBest) { best = score; saveBest(); }
+  const who = hit.name === 'cat' ? 'The cat' : 'The armadillo';
+  $('cause').textContent = who + (hit.type === 'g' ? ' ran into a rock.' : ' ran into a spike block.');
+  $('tip').textContent =
+    hit.name === 'cat'
+      ? (hit.type === 'g' ? 'Hop just before the rock.' : 'Only the armadillo fits under those. Swap sooner.')
+      : (hit.type === 'o' ? 'Roll just before the block.' : 'Only the cat clears those. Swap sooner.');
+  $('final').textContent = score + ' m';
+  $('bestline').textContent = isBest ? 'That’s your best run.' : 'Best run: ' + best + ' m';
+  over.hidden = false;
+  againBtn.focus({ preventScroll: true });
+}
+
+function start() {
+  if (state !== 'menu' && !(state === 'over' && overT > 0.35)) return;
+  beginRun();
+}
+function beginRun() {
+  ensureAudio();
+  reset();
+  state = 'run';
+  menu.hidden = true; over.hidden = true; pauseMenu.hidden = true;
+  swapBtns.forEach(b => { b.hidden = false; });
+  pauseBtn.hidden = false;
+}
+
+/* ---------- Pause menu ---------- */
+function pauseGame() {
+  if (state !== 'run' || paused) return;
+  paused = true; countdown = 0;
+  swapBuf = 0; laneBuf[0] = laneBuf[1] = 0;
+  $('pauseScore').textContent = score + ' m so far';
+  pauseMenu.hidden = false; pauseBtn.hidden = true;
+  swapBtns.forEach(b => { b.hidden = true; });
+  resumeBtn.focus({ preventScroll: true });
+}
+function resumeGame() {
+  if (!paused || sdkPaused) return;
+  paused = false; countdown = 3 * COUNT_STEP;     // 3, 2, 1, then the run continues
+  pauseMenu.hidden = true; pauseBtn.hidden = false;
+  swapBtns.forEach(b => { b.hidden = false; });
+  ensureAudio();
+}
+
+/* ---------- Drawing ---------- */
+function rr(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function tri(ax, ay, bx, by, cx, cy) {
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.lineTo(cx, cy); ctx.closePath(); ctx.fill();
+}
+
+function drawCat(air, k, phase) {
+  ctx.save();
+  if (air) { ctx.translate(0, -0.42); ctx.rotate(-0.38 * Math.cos(Math.PI * k)); ctx.translate(0, 0.42); }
+  ctx.strokeStyle = C.coral; ctx.fillStyle = C.coral; ctx.lineCap = 'round';
+  ctx.lineWidth = 0.1;
+  ctx.beginPath(); ctx.moveTo(-0.36, -0.46);
+  ctx.quadraticCurveTo(-0.74, -0.5, -0.64, -0.9 + (air ? -0.08 : Math.sin(phase * 0.5) * 0.05)); ctx.stroke();
+  ctx.lineWidth = 0.09;
+  const hips = [-0.27, -0.15, 0.15, 0.27];
+  for (let i = 0; i < 4; i++) {
+    const sw = air ? (i < 2 ? -0.9 : 0.9) : Math.sin(phase + (i % 2 ? Math.PI : 0) + (i < 2 ? 0 : 0.6));
+    ctx.beginPath(); ctx.moveTo(hips[i], -0.32); ctx.lineTo(hips[i] + sw * 0.2, air ? -0.12 : -0.045); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.ellipse(0, -0.46, 0.42, 0.19, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(0.36, -0.64, 0.2, 0, 7); ctx.fill();
+  tri(0.2, -0.74, 0.25, -0.98, 0.37, -0.82);
+  tri(0.37, -0.82, 0.5, -0.98, 0.54, -0.72);
+  ctx.fillStyle = C.ink;
+  ctx.beginPath(); ctx.arc(0.44, -0.66, 0.035, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawDil(ball, angle, phase) {
+  ctx.save();
+  ctx.lineCap = 'round';
+  if (ball) {
+    const r = 0.27;
+    ctx.translate(0, -r); ctx.rotate(angle);
+    ctx.fillStyle = C.mint; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = C.mintD; ctx.lineWidth = 0.04;
+    for (const x of [-0.12, 0, 0.12]) {
+      const dy = Math.sqrt(r * r - x * x) - 0.02;
+      ctx.beginPath(); ctx.moveTo(x, -dy); ctx.lineTo(x, dy); ctx.stroke();
+    }
+    ctx.restore(); return;
+  }
+  ctx.fillStyle = C.mint;
+  tri(-0.36, -0.44, -0.76, -0.14, -0.34, -0.24);
+  ctx.strokeStyle = C.mintD; ctx.lineWidth = 0.08;
+  const hips = [-0.26, -0.12, 0.12, 0.26];
+  for (let i = 0; i < 4; i++) {
+    const sw = Math.sin(phase + (i % 2 ? Math.PI : 0));
+    ctx.beginPath(); ctx.moveTo(hips[i], -0.2); ctx.lineTo(hips[i] + sw * 0.1, -0.04); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.ellipse(0.44, -0.34, 0.17, 0.12, 0.25, 0, 7); ctx.fill();
+  tri(0.5, -0.42, 0.78, -0.24, 0.5, -0.24);
+  ctx.beginPath(); ctx.ellipse(0.4, -0.54, 0.05, 0.11, -0.2, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, -0.47, 0.42, 0.34, 0, 0, 7); ctx.fill();
+  ctx.lineWidth = 0.035;
+  for (const x of [-0.2, -0.07, 0.06, 0.19]) {
+    const dy = 0.34 * Math.sqrt(1 - (x / 0.42) * (x / 0.42)) - 0.03;
+    ctx.beginPath(); ctx.moveTo(x, -0.47 - dy); ctx.lineTo(x, -0.47 + dy); ctx.stroke();
+  }
+  ctx.fillStyle = C.ink;
+  ctx.beginPath(); ctx.arc(0.52, -0.37, 0.03, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawRock(o) {
+  const w = o.w, h = o.h;
+  ctx.save(); if (o.k) ctx.scale(-1, 1);
+  ctx.fillStyle = C.coral;
+  ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(-w / 2 + 0.06, -h * 0.62); ctx.lineTo(-w * 0.12, -h);
+  ctx.lineTo(w * 0.26, -h * 0.86); ctx.lineTo(w / 2, -h * 0.34); ctx.lineTo(w / 2, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = C.coralD;
+  ctx.beginPath(); ctx.moveTo(-w * 0.12, -h); ctx.lineTo(w * 0.26, -h * 0.86); ctx.lineTo(w / 2, -h * 0.34);
+  ctx.lineTo(w / 2, 0); ctx.lineTo(w * 0.1, 0); ctx.lineTo(0, -h * 0.5); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawBlock(o, rope) {
+  const w = o.w;
+  ctx.strokeStyle = C.mintD; ctx.lineWidth = 0.05;
+  ctx.beginPath(); ctx.moveTo(0, -rope); ctx.lineTo(0, -(OY + 0.8)); ctx.stroke();
+  ctx.fillStyle = C.mint;
+  rr(-w / 2, -(OY + 0.82), w, 0.68, 0.1); ctx.fill();
+  const tw = w / 3;
+  for (let i = 0; i < 3; i++) tri(-w / 2 + i * tw, -(OY + 0.16), -w / 2 + (i + 0.5) * tw, -OY, -w / 2 + (i + 1) * tw, -(OY + 0.16));
+  ctx.fillStyle = C.mintD;
+  ctx.fillRect(-w / 2, -(OY + 0.64), w, 0.1);
+}
+
+const MESAS = [{ x: 2, w: 7, h: 1.6 }, { x: 12, w: 4, h: 2.3 }, { x: 19, w: 9, h: 1.1 }, { x: 31, w: 5, h: 2.0 }, { x: 38, w: 6, h: 1.4 }];
+const MESA_P = 46;
+const frac = (v) => v - Math.floor(v);
+const STARS = Array.from({ length: 46 }, (_, i) => ({ fx: frac(Math.sin(i * 127.1 + 3.7) * 43758.5), fy: frac(Math.sin(i * 311.7 + 1.3) * 24634.6), r: 0.7 + (i % 3) * 0.45, a: 0.3 + (i % 5) * 0.11 }));
+
+function drawLane(i) {
+  const top = i * H / 2, g = gy[i];
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, top, W, H / 2); ctx.clip();
+
+  const sky = ctx.createLinearGradient(0, top, 0, g);
+  if (i === 0) { sky.addColorStop(0, '#2B2D6E'); sky.addColorStop(1, '#5B3F8F'); }
+  else { sky.addColorStop(0, '#1E2059'); sky.addColorStop(1, '#2F3F86'); }
+  ctx.fillStyle = sky; ctx.fillRect(0, top, W, g - top);
+
+  ctx.fillStyle = C.cream;
+  for (let n = i; n < STARS.length; n += 2) {
+    const st = STARS[n];
+    const x = (((st.fx * W - dist * 0.02 * s) % W) + W) % W;
+    ctx.globalAlpha = st.a * (i === 0 ? 0.6 : 1);
+    ctx.beginPath(); ctx.arc(x, top + st.fy * (g - top) * 0.8, st.r, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  if (i === 0) {            // setting sun on the top track, moon on the bottom one
+    ctx.fillStyle = 'rgba(242,198,109,.36)';
+    ctx.beginPath(); ctx.arc(W * 0.7, g - 0.2 * s, 1.5 * s, 0, 7); ctx.fill();
+  } else {
+    ctx.fillStyle = 'rgba(255,243,214,.5)';
+    ctx.beginPath(); ctx.arc(W * 0.32, top + (g - top) * 0.32, 0.45 * s, 0, 7); ctx.fill();
+  }
+
+  ctx.fillStyle = i === 0 ? '#24255E' : '#1B1C52';
+  const off = (dist * 0.12 + i * 17) % MESA_P;
+  for (let k = -1; k <= Math.ceil(W / s / MESA_P) + 1; k++) {
+    for (const m of MESAS) {
+      const x = (m.x - off + k * MESA_P) * s;
+      if (x > W || x + m.w * s < 0) continue;
+      ctx.beginPath(); ctx.moveTo(x, g); ctx.lineTo(x + 0.5 * s, g - m.h * s);
+      ctx.lineTo(x + (m.w - 0.5) * s, g - m.h * s); ctx.lineTo(x + m.w * s, g); ctx.closePath(); ctx.fill();
+    }
+  }
+
+  ctx.fillStyle = C.ink; ctx.fillRect(0, g, W, top + H / 2 - g);
+  ctx.fillStyle = 'rgba(242,198,109,.22)';
+  const tick = 1.6 * s;
+  for (let x = -((dist * s) % tick); x < W; x += tick) ctx.fillRect(x, g + 0.3 * s, 0.5 * s, Math.max(2, 0.06 * s));
+  ctx.fillStyle = C.sand; ctx.fillRect(0, g - 1, W, Math.max(2, 0.07 * s));
+
+  if (SHOW_LABELS && (state === 'run' || state === 'dead')) {
+    // Quiet reminder of this track's control, along the top edge of the track.
+    const verb = laneAnimal[i] === 'cat' ? 'hop' : 'roll';
+    const txt = usingKeys ? 'Press ' + (i ? 'S' : 'W') + ' to ' + verb : 'Tap the ' + (i ? 'bottom' : 'top') + ' half to ' + verb;
+    const fs = clamp(Math.min(W, H) * 0.028, 11, 15);
+    ctx.font = '700 ' + fs + 'px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255,243,214,.62)';
+    ctx.fillText(txt, W / 2, top + (i === 0 ? safeT : 0) + Math.max(0.55 * s, fs * 1.3));
+  }
+
+  const rope = (g - top) / s + 0.2;
+  for (const o of obstacles) {
+    if (o.lane !== i) continue;
+    const x = axPx + (o.x - dist) * s;
+    if (x < -2 * s || x > W + 2 * s) continue;
+    ctx.save(); ctx.translate(x, g); ctx.scale(s, s);
+    if (o.type === 'g') drawRock(o); else drawBlock(o, rope);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawAnimal(name) {
+  const lane = laneAnimal.indexOf(name), a = A[name];
+  const phase = dist * 3.2;
+  let x = axPx, y = gy[lane], lift = 0, air = false, k = 0, ball = false, rot = 0;
+
+  if (state === 'dead' && hit && hit.name === name) {
+    const p = Math.min(1, deadT / 0.5);
+    x -= deadT * 1.4 * s; lift = Math.sin(p * Math.PI) * 0.6; rot = -1.3 * Math.min(1, deadT / 0.35);
+  } else if (swapP >= 0) {
+    const p = swapP < 0.5 ? 2 * swapP * swapP : 1 - Math.pow(-2 * swapP + 2, 2) / 2;
+    const from = swapMid ? 1 - lane : lane, to = 1 - from;
+    const arc = Math.sin(Math.PI * swapP);
+    y = lerp(gy[from], gy[to], p);
+    if (name === 'cat') { air = true; k = swapP; x += 0.55 * arc * s; lift = 0.45 * arc; }
+    else { ball = true; x -= 0.55 * arc * s; }
+  } else if (a.act >= 0) {
+    if (name === 'cat') { air = true; k = a.act / JT; lift = jumpY(a.act); } else ball = true;
+  }
+
+  ctx.save();
+  ctx.translate(x, y - lift * s); ctx.scale(s, s);
+  if (rot) { ctx.translate(0, -0.4); ctx.rotate(rot); ctx.translate(0, 0.4); }
+  if (name === 'cat') drawCat(air, k, phase); else drawDil(ball, dist * 3.4, phase);
+  ctx.restore();
+}
+
+function pill(text, cx, cy) {
+  const fs = clamp(0.5 * s, 13, 19);
+  ctx.font = '700 ' + fs + 'px ' + FONT;
+  const tw = ctx.measureText(text).width, pw = tw + fs * 1.4, ph = fs * 1.9;
+  cx = clamp(cx, pw / 2 + 6, W - pw / 2 - 6);
+  ctx.fillStyle = 'rgba(23,24,63,.86)'; rr(cx - pw / 2, cy - ph / 2, pw, ph, ph / 2); ctx.fill();
+  ctx.fillStyle = C.cream; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, cx, cy + fs * 0.04);
+}
+
+function render() {
+  layout();
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (state === 'dead' && !RM && deadT < 0.3) {
+    const m = (1 - deadT / 0.3) * 7;
+    ctx.translate(rnd(-m, m), rnd(-m, m));
+  }
+  ctx.fillStyle = C.ink; ctx.fillRect(-10, -10, W + 20, H + 20);
+  drawLane(0); drawLane(1);
+  drawAnimal('dil'); drawAnimal('cat');
+
+  for (const p of particles) {
+    ctx.globalAlpha = 1 - p.life / p.max; ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(axPx + (p.x - dist) * s, gy[p.lane] - p.y * s, p.r * s, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  if ((state === 'run' && countdown <= 0) || state === 'dead') {
+    // Score sits on the strip of earth between the two tracks.
+    const soil = H / 2 - gy[0];
+    const fs = clamp(soil * 0.62, 15, 40) * (1 + 0.22 * scorePulse);
+    const cy = gy[0] + Math.min(soil / 2, fs * 1.1) + 1;
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    ctx.font = '800 ' + fs + 'px ' + FONT; ctx.fillStyle = scorePulse > 0 ? C.sand : C.cream;
+    const txt = score + ' m';
+    ctx.fillText(txt, W / 2, cy);
+    if (best > 0) {
+      const tw = ctx.measureText(txt).width;
+      ctx.font = '700 ' + fs * 0.5 + 'px ' + FONT; ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(255,243,214,.6)';
+      ctx.fillText('best ' + best, W / 2 + tw / 2 + fs * 0.5, cy + fs * 0.08);
+    }
+  }
+
+  if (state === 'run' && !paused && countdown <= 0) {
+    const showSwap = mismatch && seen.swaps < 2;
+    swapBtns.forEach(b => b.classList.toggle('nudge', showSwap));
+    if (showSwap) pill(usingKeys ? 'Press Space to swap the runners' : 'Swap the runners', W / 2, H / 2 + Math.max(22, 0.7 * s));
+    for (let l = 0; l < 2; l++) {
+      const name = laneAnimal[l];
+      if (name === 'cat' ? seen.hop : seen.roll) continue;
+      const o = obstacles.find(q => q.lane === l && q.x > dist);
+      if (!o || o.type !== typeFor(name) || axPx + (o.x - dist) * s > W) continue;
+      const verb = name === 'cat' ? 'hop' : 'roll';
+      const top = l * H / 2;
+      pill(usingKeys ? 'Press ' + (l ? 'S' : 'W') + ' to ' + verb : 'Tap this track to ' + verb, W / 2, top + (gy[l] - top) * 0.42);
+    }
+  }
+
+  if (state === 'dead' && !RM && deadT < 0.14) {
+    ctx.fillStyle = 'rgba(255,243,214,' + (0.45 * (1 - deadT / 0.14)) + ')'; ctx.fillRect(0, 0, W, H);
+  }
+  if (state === 'run' && !paused && countdown > 0) {
+    ctx.fillStyle = 'rgba(23,24,63,.45)'; ctx.fillRect(0, 0, W, H);
+    const fs = clamp(Math.min(W, H) * 0.22, 48, 140);
+    ctx.font = '800 ' + fs + 'px ' + FONT; ctx.fillStyle = C.sand; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(Math.ceil(countdown / COUNT_STEP)), W / 2, H / 2);
+  }
+}
+
+/* ---------- Audio (synthesised, so the bundle carries no sound files) ---------- */
+let AC = null, master = null, noiseBuf = null;
+// Only trust YouTube's audio setting inside YouTube. Elsewhere (a normal browser tab)
+// the SDK is a placeholder whose answer can be "off", which would silence the game.
+let audioOn = IN_YT ? sdk(() => YT.system.isAudioEnabled()) !== false : true;
+// One line in the browser console showing what the game detected, to help with sound or saving problems.
+console.info('Cat & Dillo:', 'address', location.hostname || '(file)', '| SDK loaded', !!YT,
+  '| SDK says YouTube', !!(YT && YT.IN_PLAYABLES_ENV), '| on my site', ON_MY_SITE,
+  '| treated as YouTube', IN_YT, '| sound on', audioOn, '| saves to', IN_YT ? 'YouTube' : 'this browser');
+let sdkPaused = false;
+
+function ensureAudio() {
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) return;
+  if (!AC) {
+    try {
+      AC = new Ctor();
+      master = AC.createGain(); master.gain.value = audioOn ? 0.22 : 0; master.connect(AC.destination);
+      noiseBuf = AC.createBuffer(1, Math.floor(AC.sampleRate * 0.3), AC.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    } catch (e) { AC = null; return; }
+  }
+  if (AC.state === 'suspended' && !sdkPaused) AC.resume();
+}
+function tone(type, f0, f1, dur, vol, delay) {
+  const t = AC.currentTime + (delay || 0), o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.03);
+}
+function sfx(name) {
+  if (!AC || !audioOn || AC.state !== 'running') return;
+  if (name === 'hop') tone('triangle', 420, 780, 0.16, 0.7);
+  else if (name === 'roll') tone('sawtooth', 170, 85, 0.22, 0.3);
+  else if (name === 'swap') { tone('triangle', 500, 660, 0.09, 0.5); tone('triangle', 660, 900, 0.1, 0.5, 0.07); }
+  else if (name === 'mile') { tone('sine', 880, 880, 0.08, 0.35); tone('sine', 1320, 1320, 0.14, 0.35, 0.08); }
+  else if (name === 'hit') {
+    tone('square', 190, 48, 0.32, 0.5);
+    const n = AC.createBufferSource(), g = AC.createGain();
+    n.buffer = noiseBuf; g.gain.value = 0.8; n.connect(g); g.connect(master); n.start();
+  }
+}
+
+/* ---------- Saving ----------
+   On YouTube: only through the Playables SDK, as its rules require.
+   Anywhere else (your site, or the file opened directly): in this browser's local storage.
+   The browser branch never runs on YouTube, so one file works in both places. */
+let loadOk = false;
+const LOCAL_KEY = 'cat-and-dillo:save';
+function saveBest() {
+  if (!IN_YT) {
+    try { window.localStorage.setItem(LOCAL_KEY, JSON.stringify({ v: 1, best })); } catch (e) {}   // private mode or blocked storage: skip quietly
+    return;
+  }
+  if (loadOk) sdk(() => Promise.resolve(YT.game.saveData(JSON.stringify({ v: 1, best }))).catch(() => {}));
+  sdk(() => Promise.resolve(YT.engagement.sendScore({ value: best })).catch(() => {}));
+}
+function loadSave() {
+  if (!IN_YT) {
+    try {
+      const d = JSON.parse(window.localStorage.getItem(LOCAL_KEY) || 'null');
+      if (d && d.best > 0) best = Math.floor(d.best);
+    } catch (e) {}
+    return Promise.resolve();
+  }
+  const load = Promise.resolve(sdk(() => YT.game.loadData())).then((raw) => {
+    loadOk = true;
+    if (!raw) return;
+    try { const d = JSON.parse(raw); if (d && d.best > 0) best = Math.floor(d.best); } catch (e) {}
+  }).catch(() => {});
+  return Promise.race([load, new Promise(r => setTimeout(r, 4000))]);
+}
+
+/* ---------- Input ---------- */
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  e.preventDefault(); usingKeys = false; ensureAudio();
+  pressLane(e.clientY < H / 2 ? 0 : 1);
+});
+swapBtns.forEach(b => b.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  e.preventDefault(); e.stopPropagation(); usingKeys = false; ensureAudio();
+  pressSwap();
+}));
+window.addEventListener('contextmenu', (e) => e.preventDefault());
+playBtn.addEventListener('click', start);
+pauseBtn.addEventListener('click', () => { usingKeys = false; pauseGame(); });
+resumeBtn.addEventListener('click', resumeGame);
+$('restartBtn').addEventListener('click', () => { if (state === 'run' && paused && !sdkPaused) beginRun(); });
+againBtn.addEventListener('click', start);
+
+window.addEventListener('keydown', (e) => {
+  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target && e.target.closest && e.target.closest('#tune')) return;
+  // Escape or P toggles the pause menu. Escape's default is never blocked (YouTube requires that).
+  if (e.code === 'Escape' || e.code === 'KeyP') {
+    if (state === 'run') { usingKeys = true; if (paused) resumeGame(); else pauseGame(); }
+    return;
+  }
+  if (paused) return;     // the menu's own buttons handle Space and Enter
+  const up = e.code === 'KeyW' || e.code === 'ArrowUp', down = e.code === 'KeyS' || e.code === 'ArrowDown';
+  const go = e.code === 'Space' || e.code === 'Enter';
+  if (!up && !down && !go) return;
+  e.preventDefault(); usingKeys = true; ensureAudio();
+  if (state === 'run') { if (up) pressLane(0); else if (down) pressLane(1); else pressSwap(); }
+  else if (go) start();
+});
+
+/* ---------- Loop, pause and resume ---------- */
+let raf = 0, last = 0, frozen = false;
+function frame(ts) {
+  raf = requestAnimationFrame(frame);
+  let dt = last ? (ts - last) / 1000 : 0; last = ts;
+  if (dt > 0.5 && state === 'run') pauseGame();        // came back from a long stall: wait for the player
+  dt = Math.min(dt, 0.05);
+  if (!frozen) update(dt);
+  render();
+}
+function pause() {
+  sdkPaused = true;
+  if (raf) cancelAnimationFrame(raf); raf = 0; last = 0;
+  if (AC && AC.state === 'running') AC.suspend();
+  pauseGame();          // YouTube paused us: show the pause menu so the player resumes when ready
+}
+function resume() {
+  sdkPaused = false;
+  if (AC && AC.state === 'suspended') AC.resume();
+  if (!raf) raf = requestAnimationFrame(frame);
+}
+if (IN_YT) {
+  sdk(() => YT.system.onPause(pause));
+  sdk(() => YT.system.onResume(resume));
+  sdk(() => YT.system.onAudioEnabledChange((on) => { audioOn = !!on; if (master) master.gain.value = audioOn ? 0.22 : 0; }));
+}
+
+/* ---------- Tuning panel (developer tool, never shown inside YouTube) ---------- */
+function setupTuning() {
+  if (IN_YT || location.hash !== '#tune') return;
+  const relayout = () => resize();
+  const P = [
+    ['Speed', [
+      ['Start speed', 'V0', 2, 15, 0.1, () => V0, (v) => V0 = v],
+      ['Top speed', 'V1', 4, 25, 0.1, () => V1, (v) => V1 = v],
+      ['Speed ramp (bigger = slower)', 'TAU', 10, 200, 1, () => TAU, (v) => TAU = v],
+    ]],
+    ['Camera', [
+      ['Seconds visible ahead', 'LOOK_AHEAD_S', 1, 4, 0.05, () => LOOK_AHEAD_S, (v) => LOOK_AHEAD_S = v],
+      ['Closest zoom (units per track)', 'LANE_U', 3, 10, 0.1, () => LANE_U, (v) => LANE_U = v],
+    ]],
+    ['Obstacles', [
+      ['Clear track before switch, start', 'SWAP_GAP_START', 0.8, 4, 0.05, () => SWAP_GAP_START, (v) => SWAP_GAP_START = v],
+      ['Clear track before switch, hardest', 'SWAP_GAP_END', 0.6, 4, 0.05, () => SWAP_GAP_END, (v) => SWAP_GAP_END = v],
+      ['Gap between tracks, start', 'LANE_GAP_START', 0.1, 2, 0.05, () => LANE_GAP_START, (v) => LANE_GAP_START = v],
+      ['Gap between tracks, hardest', 'LANE_GAP_END', 0.1, 2, 0.05, () => LANE_GAP_END, (v) => LANE_GAP_END = v],
+      ['Calm stretch after switch, start (s)', 'SETTLE_S_START', 0, 5, 0.1, () => SETTLE_S_START, (v) => SETTLE_S_START = v],
+      ['Calm stretch after switch, hardest (s)', 'SETTLE_S_END', 0, 5, 0.1, () => SETTLE_S_END, (v) => SETTLE_S_END = v],
+      ['Gap between tracks while calm, start', 'SETTLE_GAP_START', 0.1, 2.5, 0.05, () => SETTLE_GAP_START, (v) => SETTLE_GAP_START = v],
+      ['Gap between tracks while calm, hardest', 'SETTLE_GAP_END', 0.1, 2.5, 0.05, () => SETTLE_GAP_END, (v) => SETTLE_GAP_END = v],
+      ['Seconds to full difficulty', 'RAMP_S', 10, 240, 1, () => RAMP_S, (v) => RAMP_S = v],
+    ]],
+    ['Moves', [
+      ['Hop length (s)', 'JT', 0.3, 1.2, 0.01, () => JT, (v) => JT = v],
+      ['Hop height', 'JH', 0.8, 3, 0.05, () => JH, (v) => JH = v],
+      ['Roll length (s)', 'RT', 0.3, 1.2, 0.01, () => RT, (v) => RT = v],
+      ['Swap length (s)', 'ST', 0.1, 0.8, 0.01, () => ST, (v) => ST = v],
+      ['Recovery after a move (s)', 'RECOVER_S', 0, 0.4, 0.01, () => RECOVER_S, (v) => RECOVER_S = v],
+    ]],
+    ['Swap buttons', [
+      ['Size', 'BTN_SIZE', 0.06, 0.3, 0.005, () => BTN_SIZE, (v) => { BTN_SIZE = v; relayout(); }],
+      ['Height on screen (%)', 'BTN_Y', 10, 90, 1, () => BTN_Y, (v) => { BTN_Y = v; relayout(); }],
+      ['Distance from edge (px)', 'BTN_X', 0, 120, 1, () => BTN_X, (v) => { BTN_X = v; relayout(); }],
+    ]],
+  ];
+  const fmt = (v, step) => String(+v.toFixed(step < 0.01 ? 3 : step < 1 ? 2 : 0));
+  const panel = $('tune'), openBtn = $('tune-open');
+  let html = '';
+  P.forEach(([group, rows]) => {
+    html += '<h2>' + group + '</h2>';
+    rows.forEach(([label, key, min, max, step]) => {
+      html += '<label class="row"><span style="text-align:left">' + label + '</span><span id="tv-' + key + '"></span>' +
+              '<input type="range" min="' + min + '" max="' + max + '" step="' + step + '" data-k="' + key + '"></label>';
+    });
+  });
+  html += '<div class="bar"><button type="button" id="t-freeze">Freeze</button><button type="button" id="t-copy">Copy values</button>' +
+          '<button type="button" id="t-hide">Hide</button></div><textarea id="t-out" readonly hidden></textarea>';
+  panel.innerHTML = html;
+  const all = P.flatMap(([, rows]) => rows);
+  all.forEach(([, key, , , step, get, set]) => {
+    const input = panel.querySelector('[data-k="' + key + '"]'), out = $('tv-' + key);
+    input.value = get(); out.textContent = fmt(get(), step);
+    input.addEventListener('input', () => { set(+input.value); out.textContent = fmt(+input.value, step); });
+  });
+  $('t-freeze').addEventListener('click', (e) => {
+    frozen = !frozen; e.target.classList.toggle('on', frozen); e.target.textContent = frozen ? 'Unfreeze' : 'Freeze';
+  });
+  $('t-copy').addEventListener('click', () => {
+    const text = all.map(([, key, , , step, get]) => key + ' = ' + fmt(get(), step) + ';').join('\n');
+    const ta = $('t-out'); ta.hidden = false; ta.value = text; ta.select();
+    try { navigator.clipboard.writeText(text); } catch (e) {}
+  });
+  $('t-hide').addEventListener('click', () => { panel.hidden = true; openBtn.hidden = false; });
+  openBtn.addEventListener('click', () => { panel.hidden = false; openBtn.hidden = true; });
+  panel.hidden = false;
+}
+setupTuning();
+
+/* ---------- Boot ---------- */
+window.addEventListener('resize', resize);
+resize();
+render();
+if (YT) sdk(() => YT.game.firstFrameReady());
+raf = requestAnimationFrame(frame);
+loadSave().then(() => {
+  state = 'menu';
+  playBtn.disabled = false; playBtn.textContent = 'Start running';
+  playBtn.focus({ preventScroll: true });
+  if (YT) sdk(() => YT.game.gameReady());
+});
+
+})();
+</script>
+</body>
+</html>

@@ -14,7 +14,7 @@ links:
 specs:
   engine: Unreal Engine 5
   platform: Windows
-  team: "Me and a couple of my friends: \nAarav Mittal and Shreyansh Saras"
+  # team: "Me and a couple of my friends: \nAarav Mittal and Shreyansh Saras"
 
 features: 
  - A echolocation effect made using emmissive light in materials triggered using input (mouse right click)

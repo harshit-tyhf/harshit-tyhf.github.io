@@ -21,6 +21,7 @@ links:
 specs:
   engine: Unity
   role: UI Programmer
+  platform: Android
 ---
 
 You and your friends wake up in a cursed house. The Fear Man is looking for you. You need to escape before he catches you, but the problem is, there are 5 people and only 3 keys. Who escapes and who gets left behind? Find out by playing.

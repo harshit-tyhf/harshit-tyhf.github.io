@@ -4,9 +4,9 @@ import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import GameCard from '../../components/GameCard.astro';
-import { published, withBase } from '../../lib/utils';
+import { listed, withBase } from '../../lib/utils';
 
-const games = (await getCollection('games', published)).sort((a, b) => a.data.order - b.data.order);
+const games = (await getCollection('games', listed)).sort((a, b) => a.data.order - b.data.order);
 const soloGames = games.filter((g) => !g.data.collab);
 const collabGames = games.filter((g) => g.data.collab);
 ---
